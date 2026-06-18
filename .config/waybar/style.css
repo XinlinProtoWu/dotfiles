@@ -1,0 +1,334 @@
+* {
+    /* `otf-font-awesome` is required to be installed for icons */
+    font-family: FontAwesome, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px;
+}
+
+window#waybar {
+    background-color: rgba(20, 20, 20, 0.5);
+    border-bottom: 3px solid rgba(100, 114, 125, 0.5);
+    color: #ffffff;
+    transition-property: background-color;
+    transition-duration: .5s;
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+/*
+window#waybar.empty {
+    background-color: transparent;
+}
+window#waybar.solo {
+    background-color: #FFFFFF;
+}
+*/
+
+window#waybar.termite {
+    background-color: #3F3F3F;
+}
+
+window#waybar.chromium {
+    background-color: #000000;
+    border: none;
+}
+
+button {
+    box-shadow: inset 0 -3px transparent;
+    border: none;
+    border-radius: 8px; 
+}
+
+/* https://github.com/Alexays/Waybar/wiki/FAQ#the-workspace-buttons-have-a-strange-hover-effect */
+button:hover {
+    background: inherit;
+    box-shadow: inset 0 -3px #ffffff;
+}
+
+/* you can set a style on hover for any module like this */
+#pulseaudio:hover {
+    background-color: #1793d1;
+}
+
+#network:hover {
+    background-color: #1793d1;
+}
+
+#bluetooth:hover {
+    background-color: #1793d1;
+}
+
+#workspaces button {
+    padding: 0 5px;
+    background-color: transparent;
+    color: #ffffff;
+}
+
+#workspaces button:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#workspaces button.focused, #workspaces button.active {
+    background-color: #64727D;
+    box-shadow: inset 0 -3px #ffffff;
+}
+
+#workspaces button.urgent {
+    background-color: #eb4d4b;
+}
+
+#mode {
+    background-color: #64727D;
+    box-shadow: inset 0 -3px #ffffff;
+}
+
+#clock,
+#battery,
+#cpu,
+#memory,
+#disk,
+#temperature,
+#backlight,
+#network,
+#pulseaudio,
+#wireplumber,
+#custom-media,
+#tray,
+#mode,
+#idle_inhibitor,
+#scratchpad,
+#bluetooth,
+#language,
+#keyboard-state,
+#power-profiles-daemon,
+#mpd {
+    padding: 0 10px;
+    color: #ffffff;
+    border-radius: 8px;            /* Adds rounded corners */
+    margin: 4px 2px;               /* Adds a small gap between modules */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Optional: subtle white border */
+}
+
+#window,
+#workspaces {
+    margin: 0 4px;
+}
+
+/* If workspaces is the leftmost module, omit left margin */
+.modules-left > widget:first-child > #workspaces {
+    margin-left: 0;
+}
+
+/* If workspaces is the rightmost module, omit right margin */
+.modules-right > widget:last-child > #workspaces {
+    margin-right: 0;
+}
+
+#clock {
+
+}
+
+#battery {
+    
+}
+
+#battery.charging, #battery.plugged {
+    
+}
+
+@keyframes blink {
+    to {
+        
+    }
+}
+
+/* Using steps() instead of linear as a timing function to limit cpu usage */
+#battery.critical:not(.charging) {
+    
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: steps(12);
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+label:focus {
+    background-color: #000000;
+}
+
+#cpu {
+    
+}
+
+#memory {
+    
+}
+
+#disk {
+    
+}
+
+#backlight {
+    
+}
+
+#network {
+    
+}
+
+#network.disconnected {
+    
+}
+
+#pulseaudio {
+    
+}
+
+#pulseaudio.muted {
+    
+}
+
+#wireplumber {
+    
+}
+
+#wireplumber.muted {
+    
+}
+
+#custom-media {
+    min-width: 100px;
+}
+
+#custom-media.custom-spotify {
+    
+}
+
+#custom-media.custom-vlc {
+    
+}
+
+#temperature {
+    
+}
+
+#temperature.critical {
+    
+}
+
+#tray {
+    
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+#idle_inhibitor {
+    
+}
+
+#idle_inhibitor.activated {
+    
+}
+
+#mpd {
+    
+}
+
+#mpd.disconnected {
+    
+}
+
+#mpd.stopped {
+    
+}
+
+#mpd.paused {
+    
+}
+
+#language {
+    padding: 0 5px;
+    margin: 0 5px;
+    min-width: 16px;
+}
+
+#keyboard-state {
+    padding: 0 0px;
+    margin: 0 5px;
+    min-width: 16px;
+}
+
+#keyboard-state > label {
+    padding: 0 5px;
+}
+
+#keyboard-state > label.locked {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#scratchpad {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#scratchpad.empty {
+	background-color: transparent;
+}
+
+#privacy {
+    padding: 0;
+}
+
+#privacy-item {
+    padding: 0 5px;
+    color: white;
+}
+
+#privacy-item.screenshare {
+    background-color: #cf5700;
+}
+
+#privacy-item.audio-in {
+    background-color: #1ca000;
+}
+
+#privacy-item.audio-out {
+    background-color: #0069d4;
+}
+/* 1. The container box for the entire drawer */
+#group\/power-profiles {
+    border-radius: 8px;
+    padding: 0 4px;
+    margin: 0 4px;
+}
+
+/* 2. The main toggle icon */
+#custom-power-root {
+    color: #cdd6f4;
+    padding: 0 8px;
+}
+
+/* 3. FORCE spacing on the individual items by their specific IDs */
+#custom-saver, 
+#custom-balanced, 
+#custom-performance {
+    border-radius: 6px;
+    
+    /* This forces horizontal separation */
+    padding: 0 12px; 
+    margin: 3px 6px;
+    
+    /* This stops the text from collapsing into itself */
+    min-width: 90px;
+}
+
+/* 4. Color accents */
+#custom-saver { color: #a6e3a1; }
+#custom-balanced { color: #f9e2af; }
+#custom-performance { color: #f38ba8; }
