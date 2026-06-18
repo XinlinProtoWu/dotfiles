@@ -70,13 +70,15 @@ done
 # 3. Generate explicit pacman and yay package lists
 echo "📋 Generating package lists..."
 if command -v pacman &>/dev/null; then
-  pacman -Qen >"$DOT_DIR/pkglist/pacman-explicit.txt"
+  # Added 'q' to get names ONLY, dropping the version numbers
+  pacman -Qenq >"$DOT_DIR/pkglist/pacman-explicit.txt"
 fi
 
 if command -v yay &>/dev/null; then
-  yay -Qem >"$DOT_DIR/pkglist/yay-explicit.txt"
+  # Added 'q' here as well
+  yay -Qemq >"$DOT_DIR/pkglist/yay-explicit.txt"
 else
-  pacman -Qem >"$DOT_DIR/pkglist/aur-explicit.txt"
+  pacman -Qemq >"$DOT_DIR/pkglist/aur-explicit.txt"
 fi
 
 # 4. Git Operations

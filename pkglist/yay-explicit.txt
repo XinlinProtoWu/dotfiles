@@ -1,14 +1,14 @@
-glava 1.6.3-5
-google-chrome 149.0.7827.53-1
-mpvpaper 1.8-1
-protonup-rs 0.12.1-1
-psp-binutils 2.44-1
-psp-sdk-bin 20260528-1
-tokyonight-gtk-theme-git r96.6c340e05-1
-topgrade-bin 17.5.1-1
-vencord 1.14.13-1
-waypaper 2.8-1
-woomer 0.2.0-1
-yay 12.5.7-1
-yay-debug 12.5.7-1
-yazi-nightly-bin 26.5.6.20260611.9b920ed-1
+glava
+google-chrome
+mpvpaper
+protonup-rs
+psp-binutils
+psp-sdk-bin
+tokyonight-gtk-theme-git
+topgrade-bin
+vencord
+waypaper
+woomer
+yay
+yay-debug
+yazi-nightly-bin

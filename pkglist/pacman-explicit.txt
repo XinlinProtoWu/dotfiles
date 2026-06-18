@@ -1,113 +1,113 @@
-7zip 26.01-1
-adobe-source-han-sans-otc-fonts 2.005-2
-adobe-source-han-serif-otc-fonts 2.003-2
-armv4t-pkg-config 0.28-1
-awww 0.12.1-1
-base 3-3
-base-devel 1-2
-blueman 2.4.6-2
-bluez 5.86-6
-bluez-utils 5.86-6
-brightnessctl 0.5.1-3
-catnip 0.2.0-1
-chafa 1.18.2-1
-clang 22.1.6-1
-cmake 4.3.3-1
-conky 1.22.3-3
-cuda 13.3.0-1
-devkit-env 1.0.1-2
-devkitARM r68-1
-devkitARM-gdb 14.1-2
-devkitarm-binutils 2.46.0-1
-devkitarm-cmake 1.2.4-1
-devkitarm-crtls 1.2.6-1
-devkitarm-gcc 16.1.0-1
-devkitarm-newlib 4.6.0.20260123-5
-devkitpro-keyring 20241017-2
-discord 1:1.0.142-1
-docker 1:29.5.2-1
-docker-buildx 0.34.1-1
-docker-compose 5.1.4-1
-efibootmgr 18-4
-fcitx5 5.1.19-1
-fcitx5-chinese-addons 5.1.12-2
-fcitx5-configtool 5.1.13-1
-fcitx5-gtk 5.1.6-1
-fcitx5-qt 5.1.13-5
-fd 10.4.2-2
-fish 4.7.1-1
-fzf 0.72.0-1
-gba-cmake 1.0.2-1
-gba-examples 20240626-1
-gba-pkg-config 0.28-4
-gba-tools 1.2.0-1
-gdb 17.2-1
-general-tools 1.4.4-1
-git 2.54.0-1
-grim 1.5.0-2
-grit 0.10.0-1
-grub 2:2.14-1
-gvfs 1.60.0-2
-hyprland 0.55.4-1
-hyprpaper 0.8.4-2
-hyprpicker 0.4.7-1
-hyprshot 1.3.0-4
-imagemagick 7.1.2.25-1
-kitty 0.47.1-1
-less 1:704-1
-lib32-glew 2.3.1-1
-libfat-gba 1.1.5-1
-libgba 0.5.4-1
-libtonc 1.4.5-1
-linux 7.0.12.arch1-1
-linux-firmware 20260519-1
-linux-headers 7.0.12.arch1-1
-lldb 22.1.6-1
-man-pages 6.18-1
-maxmod-gba 1.0.15-1
-mmutil 1.10.1-1
-nano 9.0-1
-neovim 0.12.3-1
-network-manager-applet 1.36.0-2
-networkmanager 1.56.1-1
-ninja 1.13.2-3
-nodejs 26.2.0-1
-noto-fonts-cjk 20240730-1
-noto-fonts-emoji 1:2.051-1
-npm 11.16.0-1
-nvidia-container-toolkit 1.19.1-1
-nvidia-open-dkms 610.43.02-2
-nvidia-utils 610.43.02-2
-nwg-look 1.1.1-3
-otf-font-awesome 7.2.0-1
-otf-ipafont 003.03-9
-pavucontrol 1:6.2-1
-pipewire 1:1.6.6-1
-pipewire-pulse 1:1.6.6-1
-platformio-core 6.1.19-4
-pnpm 11.3.0-1
-poppler 26.06.0-1
-power-profiles-daemon 0.30-1
-python-pip 26.1.2-1
-python-pynvim 0.6.0-2
-resvg 0.47.0-2
-ripgrep 15.1.0-3
-rofi 2.0.0-1
-slurp 1.5.0-2
-steam 1.0.0.85-7
-sudo 1.9.17.p2-2
-timeshift 25.12.4-1
-tmux 3.6_b-2
-tree-sitter-cli 0.26.9-1
-ttf-jetbrains-mono-nerd 3.4.0-2
-ttf-nerd-fonts-symbols-common 3.4.0-1
-tumbler 4.20.1-1
-unzip 6.0-23
-vim 9.2.0623-1
-waybar 0.15.0-2
-wireplumber 0.5.14-1
-wl-clipboard 1:2.3.0-1
-wofi 1.5.3-1
-xdg-desktop-portal-hyprland 1.3.12-2
-zoxide 0.9.9-2
-zram-generator 1.2.1-1
+7zip
+adobe-source-han-sans-otc-fonts
+adobe-source-han-serif-otc-fonts
+armv4t-pkg-config
+awww
+base
+base-devel
+blueman
+bluez
+bluez-utils
+brightnessctl
+catnip
+chafa
+clang
+cmake
+conky
+cuda
+devkit-env
+devkitARM
+devkitARM-gdb
+devkitarm-binutils
+devkitarm-cmake
+devkitarm-crtls
+devkitarm-gcc
+devkitarm-newlib
+devkitpro-keyring
+discord
+docker
+docker-buildx
+docker-compose
+efibootmgr
+fcitx5
+fcitx5-chinese-addons
+fcitx5-configtool
+fcitx5-gtk
+fcitx5-qt
+fd
+fish
+fzf
+gba-cmake
+gba-examples
+gba-pkg-config
+gba-tools
+gdb
+general-tools
+git
+grim
+grit
+grub
+gvfs
+hyprland
+hyprpaper
+hyprpicker
+hyprshot
+imagemagick
+kitty
+less
+lib32-glew
+libfat-gba
+libgba
+libtonc
+linux
+linux-firmware
+linux-headers
+lldb
+man-pages
+maxmod-gba
+mmutil
+nano
+neovim
+network-manager-applet
+networkmanager
+ninja
+nodejs
+noto-fonts-cjk
+noto-fonts-emoji
+npm
+nvidia-container-toolkit
+nvidia-open-dkms
+nvidia-utils
+nwg-look
+otf-font-awesome
+otf-ipafont
+pavucontrol
+pipewire
+pipewire-pulse
+platformio-core
+pnpm
+poppler
+power-profiles-daemon
+python-pip
+python-pynvim
+resvg
+ripgrep
+rofi
+slurp
+steam
+sudo
+timeshift
+tmux
+tree-sitter-cli
+ttf-jetbrains-mono-nerd
+ttf-nerd-fonts-symbols-common
+tumbler
+unzip
+vim
+waybar
+wireplumber
+wl-clipboard
+wofi
+xdg-desktop-portal-hyprland
+zoxide
+zram-generator
