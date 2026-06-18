@@ -53,6 +53,20 @@ else
   echo "⚠️ Warning: ~/.local/bin does not exist yet. Skipping."
 fi
 
+# 2.5. Sync specific dotfiles from the root of $HOME
+echo "🔄 Syncing home directory dotfiles..."
+HOME_FILES=(
+  ".bashrc"
+  ".bash_profile"
+  ".profile"
+)
+
+for file in "${HOME_FILES[@]}"; do
+  if [ -f "$HOME/$file" ]; then
+    cp "$HOME/$file" "$DOT_DIR/"
+  fi
+done
+
 # 3. Generate explicit pacman and yay package lists
 echo "📋 Generating package lists..."
 if command -v pacman &>/dev/null; then
