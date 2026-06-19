@@ -44,9 +44,13 @@ vim.keymap.set("n", "<leader>ct", function()
   local formatoptions = vim.bo.formatoptions
 
   if formatoptions:match("r") or formatoptions:match("o") then
-    vim.opt_local.formatoptions:remove("cro")
+    -- Remove flags individually to avoid substring matching issues
+    vim.opt_local.formatoptions:remove("c")
+    vim.opt_local.formatoptions:remove("r")
+    vim.opt_local.formatoptions:remove("o")
     vim.notify("Auto-comment DISABLED", vim.log.levels.WARN, { title = "Format Options" })
   else
+    -- Appending as a single string is perfectly safe
     vim.opt_local.formatoptions:append("cro")
     vim.notify("Auto-comment ENABLED", vim.log.levels.INFO, { title = "Format Options" })
   end

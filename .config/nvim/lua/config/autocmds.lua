@@ -12,14 +12,7 @@
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "*",
   callback = function()
-    -- Corrected: Pass a single string of flags
-    vim.opt_local.formatoptions:remove("cro")
-  end,
-  desc = "Disable auto-commenting on new buffers",
-})
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "*",
-  callback = function()
+    -- Safely remove each flag individually upon entering a new buffer
     vim.opt_local.formatoptions:remove({ "c", "r", "o" })
   end,
   desc = "Disable auto-commenting on new buffers",

@@ -10,5 +10,4 @@ vencord
 waypaper
 woomer
 yay
-yay-debug
 yazi-nightly-bin
