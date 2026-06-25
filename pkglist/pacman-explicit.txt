@@ -63,6 +63,7 @@ linux
 linux-firmware
 linux-headers
 lldb
+man-db
 man-pages
 maxmod-gba
 mmutil
