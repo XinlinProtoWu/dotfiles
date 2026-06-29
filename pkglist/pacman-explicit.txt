@@ -25,6 +25,7 @@ devkitarm-gcc
 devkitarm-newlib
 devkitpro-keyring
 discord
+dmenu
 docker
 docker-buildx
 docker-compose
@@ -35,6 +36,7 @@ fcitx5-configtool
 fcitx5-gtk
 fcitx5-qt
 fd
+feh
 fish
 fzf
 gba-cmake
@@ -52,8 +54,11 @@ hyprland
 hyprpaper
 hyprpicker
 hyprshot
+i3-wm
+i3status
 imagemagick
 kitty
+lazygit
 less
 lib32-glew
 libfat-gba
@@ -80,9 +85,11 @@ nvidia-container-toolkit
 nvidia-open-dkms
 nvidia-utils
 nwg-look
+os-prober
 otf-font-awesome
 otf-ipafont
 pavucontrol
+picom
 pipewire
 pipewire-pulse
 platformio-core
@@ -97,6 +104,7 @@ rofi
 slurp
 steam
 sudo
+thunar
 timeshift
 tmux
 tree-sitter-cli
@@ -109,6 +117,9 @@ waybar
 wireplumber
 wl-clipboard
 wofi
+xclip
 xdg-desktop-portal-hyprland
+xf86-video-intel
+xorg-xinit
 zoxide
 zram-generator

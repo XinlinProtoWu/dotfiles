@@ -55,3 +55,9 @@ vim.keymap.set("n", "<leader>ct", function()
     vim.notify("Auto-comment ENABLED", vim.log.levels.INFO, { title = "Format Options" })
   end
 end, { desc = "Toggle Auto-Commenting" })
+
+-- Paste from system clipboard (browser) using Space + p
+vim.keymap.set({ "n", "v" }, "<leader>p", '"+p', { desc = "Paste from system clipboard" })
+
+-- Yank to system clipboard using Space + y
+vim.keymap.set({ "n", "v" }, "<leader>y", '"+y', { desc = "Yank to system clipboard" })
