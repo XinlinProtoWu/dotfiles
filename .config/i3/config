@@ -27,8 +27,8 @@ exec --no-startup-id dex --autostart --environment i3
 # Try 1440p 144Hz first -> Fall back to 1080p high refresh -> Fall back to generic auto-detect
 exec_always --no-startup-id (xrandr --output DP-0 --mode 2560x1440 --rate 165.00 --primary --output DP-2 --mode 2560x1600 --rate 165.02 --scale 0.625x0.625 --right-of DP-0) || (xrandr --output DP-1 --mode 1920x1080 --rate 60.00 --primary --output DP-2 --mode 1920x1080 --rate 60.00 --right-of DP-1) || (xrandr --auto)
 
-# The combination of xss-lock, nm-applet and pactl is a popular choice, so
-# they are included here as an example. Modify as you see fit.
+# Chinese input
+exec --no-startup-id fcitx5 -d
 
 # xss-lock grabs a logind suspend inhibit lock and will use i3lock to lock the
 # screen before suspend. Use loginctl lock-session to lock your screen.
