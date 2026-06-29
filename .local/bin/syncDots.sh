@@ -8,6 +8,16 @@ DOT_DIR="$HOME/.dotfiles"
 CONFIG_DIR="$HOME/.config"
 LOCAL_BIN_DIR="$HOME/.local/bin"
 
+# -------------------------------------------------------------
+# System-level files to track from /etc/
+# Add or remove paths here depending on your exact setup
+# -------------------------------------------------------------
+ETC_FILES=(
+  "/etc/default/grub"
+  "/etc/mkinitcpio.conf"
+  "/etc/modprobe.d/" # Backs up the entire directory for nvidia tweaks
+)
+
 # Blacklist for ~/.config to catch heavy caches, electron apps, and tokens
 EXCLUDES_CONFIG=(
   --exclude='.git/'
@@ -17,7 +27,7 @@ EXCLUDES_CONFIG=(
   --exclude='BraveSoftware/'
   --exclude='discord/'
   --exclude='vesktop/'
-  --exclude='endcord/' # Added to block the profile token file
+  --exclude='endcord/'
   --exclude='slack/'
   --exclude='spotify/'
   --exclude='Electron/'
@@ -40,6 +50,7 @@ fi
 mkdir -p "$DOT_DIR/.config"
 mkdir -p "$DOT_DIR/.local/bin"
 mkdir -p "$DOT_DIR/pkglist"
+mkdir -p "$DOT_DIR/etc"
 
 # 1. Sync ALL of ~/.config (minus blacklisted items)
 echo "🔄 Syncing ~/.config..."
@@ -53,12 +64,13 @@ else
   echo "⚠️ Warning: ~/.local/bin does not exist yet. Skipping."
 fi
 
-# 2.5. Sync specific dotfiles from the root of $HOME
+# 3. Sync specific dotfiles from the root of $HOME
 echo "🔄 Syncing home directory dotfiles..."
 HOME_FILES=(
   ".bashrc"
   ".bash_profile"
   ".profile"
+  ".gitconfig"
 )
 
 for file in "${HOME_FILES[@]}"; do
@@ -67,7 +79,21 @@ for file in "${HOME_FILES[@]}"; do
   fi
 done
 
-# 3. Generate explicit pacman and yay package lists
+# 4. Sync System-Level Configs from /etc/
+echo "🔄 Syncing system-level files from /etc/..."
+for target in "${ETC_FILES[@]}"; do
+  if [ -e "$target" ]; then
+    # --relative keeps the structure intact, so /etc/default/grub goes to $DOT_DIR/etc/default/grub
+    sudo rsync -avR "$target" "$DOT_DIR/"
+  else
+    echo "⚠️ Warning: System file $target not found. Skipping."
+  fi
+done
+
+# Fix permissions so your user owns the backup files inside your repository
+sudo chown -R "$(id -u):$(id -g)" "$DOT_DIR/etc"
+
+# 5. Generate explicit pacman and yay package lists
 echo "📋 Generating package lists..."
 if command -v pacman &>/dev/null; then
   # Added 'q' to get names ONLY, dropping the version numbers

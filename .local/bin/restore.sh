@@ -68,4 +68,24 @@ for file in "${HOME_FILES[@]}"; do
   fi
 done
 
-echo "✨ System deployment complete! Your configurations are physically copied over."
+# 7. Restore System-Level Configurations (/etc/)
+if [ -d "$DOT_DIR/etc" ]; then
+  echo "📥 Restoring system configurations to /etc/..."
+  # Re-sync files directly back to system root with correct permissions
+  sudo rsync -av "$DOT_DIR/etc/" "/etc/"
+
+  # Regenerate kernel hooks and GRUB configurations since we overrode them
+  echo "⚙️ Rebuilding initramfs kernels..."
+  sudo mkinitcpio -P
+
+  if command -v grub-mkconfig &>/dev/null; then
+    echo "⚙️ Updating GRUB bootloader configuration..."
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+  fi
+fi
+
+# 8. Enable Essential Background Services
+echo "⚙️ Enabling core system services..."
+sudo systemctl enable NetworkManager || true
+
+echo "✨ System deployment complete! Reboots are highly recommended."
