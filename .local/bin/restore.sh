@@ -6,7 +6,36 @@ set -e
 DOT_DIR="$HOME/.dotfiles"
 
 echo "🚀 Starting System Reconstruction (Copy Method)..."
+# 1. Handle devkitPro Keyring and Repositories Pre-requisites
+echo "🔑 Setting up devkitPro package signing keys..."
 
+# 1a. Populate default Arch keys first to ensure a healthy keyring base
+sudo pacman-key --init
+sudo pacman-key --populate archlinux
+
+# 1b. Import the specific devkitPro validation key
+sudo pacman-key --recv BC26F752D25B92CE272E0F44F7FD5492264BB9D0 --keyserver keyserver.ubuntu.com
+sudo pacman-key --lsign BC26F752D25B92CE272E0F44F7FD5492264BB9D0
+
+# 1c. CRITICALFIX: Explicitly locally sign Dave Murphy's key to bypass "unknown trust" errors
+echo "✍️ Locally signing devkitPro developer key..."
+sudo pacman-key --lsign-key BC26F752D25B92CE272E0F44F7FD5492264BB9D0
+
+echo "📦 Installing devkitpro-keyring..."
+sudo pacman -U --noconfirm https://pkg.devkitpro.org/devkitpro-keyring.pkg.tar.zst || true
+
+# Safe fallback to populate the newly installed keyring
+sudo pacman-key --populate devkitpro
+
+# Restore system-level configs early so /etc/pacman.conf contains the new [dkp-libs] and [dkp-linux] blocks
+if [ -f "$DOT_DIR/etc/pacman.conf" ]; then
+  echo "📥 Injecting custom pacman.conf with devkitPro repositories..."
+  sudo cp "$DOT_DIR/etc/pacman.conf" "/etc/pacman.conf"
+fi
+
+# Full system database sync (pacman -Syyu) to register the newly added dkp repos
+echo "🔄 Refreshing system package databases..."
+sudo pacman -Syyu --noconfirm
 # 1. Install Official Pacman Packages
 if [ -f "$DOT_DIR/pkglist/pacman-explicit.txt" ]; then
   echo "📦 Installing official system packages..."
