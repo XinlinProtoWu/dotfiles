@@ -15,7 +15,8 @@ LOCAL_BIN_DIR="$HOME/.local/bin"
 ETC_FILES=(
   "/etc/default/grub"
   "/etc/mkinitcpio.conf"
-  "/etc/modprobe.d/" # Backs up the entire directory for nvidia tweaks
+  "/etc/modprobe.d/"
+  "/etc/pacman.conf"
 )
 
 # Blacklist for ~/.config to catch heavy caches, electron apps, and tokens

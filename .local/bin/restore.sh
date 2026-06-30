@@ -5,41 +5,61 @@ set -e
 
 DOT_DIR="$HOME/.dotfiles"
 
-echo "🚀 Starting System Reconstruction (Copy Method)..."
-# 1. Handle devkitPro Keyring and Repositories Pre-requisites
+echo "🚀 Starting System Reconstruction (Strict Move Method)..."
+
+# =====================================================================
+# PHASE 1: Deploy Core Environment Identity Files (CRITICAL PRE-REQUISITES)
+# =====================================================================
+echo "🆔 Moving core environment identity files first..."
+
+# 1a. Move shell profiles so paths and environments take immediate effect
+HOME_FILES=(".bashrc" ".bash_profile" ".profile" ".gitconfig")
+for file in "${HOME_FILES[@]}"; do
+  if [ -f "$DOT_DIR/$file" ]; then
+    # Clear out any existing target file to prevent moving inside a directory by mistake
+    rm -f "$HOME/$file"
+    mv "$DOT_DIR/$file" "$HOME/"
+    echo "✅ Moved $file to $HOME/"
+  fi
+done
+
+# 1b. Inject custom pacman.conf early so repository flags work for the keyrings
+if [ -f "$DOT_DIR/etc/pacman.conf" ]; then
+  echo "📥 Moving custom pacman.conf with devkitPro repositories..."
+  sudo mkdir -p /etc
+  sudo rm -f "/etc/pacman.conf"
+  sudo mv "$DOT_DIR/etc/pacman.conf" "/etc/pacman.conf"
+fi
+
+# =====================================================================
+# PHASE 2: Handle devkitPro Keyring and Repositories
+# =====================================================================
 echo "🔑 Setting up devkitPro package signing keys..."
 
-# 1a. Populate default Arch keys first to ensure a healthy keyring base
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 
-# 1b. Import the specific devkitPro validation key
 sudo pacman-key --recv BC26F752D25B92CE272E0F44F7FD5492264BB9D0 --keyserver keyserver.ubuntu.com
 sudo pacman-key --lsign BC26F752D25B92CE272E0F44F7FD5492264BB9D0
 
-# 1c. CRITICALFIX: Explicitly locally sign Dave Murphy's key to bypass "unknown trust" errors
 echo "✍️ Locally signing devkitPro developer key..."
 sudo pacman-key --lsign-key BC26F752D25B92CE272E0F44F7FD5492264BB9D0
 
 echo "📦 Installing devkitpro-keyring..."
 sudo pacman -U --noconfirm https://pkg.devkitpro.org/devkitpro-keyring.pkg.tar.zst || true
-
-# Safe fallback to populate the newly installed keyring
 sudo pacman-key --populate devkitpro
 
-# Restore system-level configs early so /etc/pacman.conf contains the new [dkp-libs] and [dkp-linux] blocks
-if [ -f "$DOT_DIR/etc/pacman.conf" ]; then
-  echo "📥 Injecting custom pacman.conf with devkitPro repositories..."
-  sudo cp "$DOT_DIR/etc/pacman.conf" "/etc/pacman.conf"
-fi
-
-# Full system database sync (pacman -Syyu) to register the newly added dkp repos
+# Full system database sync to register the newly added dkp repos
 echo "🔄 Refreshing system package databases..."
 sudo pacman -Syyu --noconfirm
+
+# =====================================================================
+# PHASE 3: Install Package Lists
+# =====================================================================
 # 1. Install Official Pacman Packages
 if [ -f "$DOT_DIR/pkglist/pacman-explicit.txt" ]; then
   echo "📦 Installing official system packages..."
-  sudo pacman -S --needed - <"$DOT_DIR/pkglist/pacman-explicit.txt"
+  sudo pacman -S --needed --noconfirm - <"$DOT_DIR/pkglist/pacman-explicit.txt"
 else
   echo "⚠️ Warning: pacman-explicit.txt not found. Skipping official packages."
 fi
@@ -48,62 +68,68 @@ fi
 if [ -f "$DOT_DIR/pkglist/yay-explicit.txt" ] || [ -f "$DOT_DIR/pkglist/aur-explicit.txt" ]; then
   if ! command -v yay &>/dev/null; then
     echo "📦 yay not found. Installing yay (AUR helper)..."
-    sudo pacman -S --needed base-devel git
+    sudo pacman -S --needed --noconfirm base-devel git
+    rm -rf /tmp/yay
     git clone https://aur.archlinux.org/yay.git /tmp/yay
     cd /tmp/yay && makepkg -si --noconfirm && cd -
   fi
 
   echo "📦 Installing AUR packages..."
   if [ -f "$DOT_DIR/pkglist/yay-explicit.txt" ]; then
-    yay -S --needed - <"$DOT_DIR/pkglist/yay-explicit.txt"
+    yay -S --needed --noconfirm - <"$DOT_DIR/pkglist/yay-explicit.txt"
   else
-    yay -S --needed - <"$DOT_DIR/pkglist/aur-explicit.txt"
+    yay -S --needed --noconfirm - <"$DOT_DIR/pkglist/aur-explicit.txt"
   fi
 fi
 
-# 3. Create Required Destination Directories
+# =====================================================================
+# PHASE 4: Deploy Directory Configurations via Move
+# =====================================================================
 echo "📂 Preparing home directory structures..."
 mkdir -p "$HOME/.config"
 mkdir -p "$HOME/.local/bin"
 
-# 4. Copy Configurations to ~/.config
+# Explicitly loop and move every single standalone config folder (i3, hyprland, etc.)
 if [ -d "$DOT_DIR/.config" ]; then
-  echo "📥 Copying application configurations to ~/.config/..."
-  # Using 'cp -r' to copy all subfolders recursively
-  cp -r "$DOT_DIR/.config/"* "$HOME/.config/"
+  echo "📥 Moving application configurations into ~/.config/..."
+  for target_config in "$DOT_DIR/.config"/*; do
+    [ -e "$target_config" ] || continue
+    config_name=$(basename "$target_config")
+
+    # Destructive clean of the destination to prevent nesting folder bugs
+    rm -rf "$HOME/.config/$config_name"
+
+    # Structural move execution
+    mv "$target_config" "$HOME/.config/"
+    echo "⚙️  Moved profile config: $config_name"
+  done
 fi
 
-# 5. Copy Custom Scripts to ~/.local/bin
+# Move Custom Scripts to ~/.local/bin safely
 if [ -d "$DOT_DIR/.local/bin" ]; then
-  echo "📥 Copying custom scripts to ~/.local/bin/..."
-  cp -r "$DOT_DIR/.local/bin/"* "$HOME/.local/bin/"
-  # Ensure everything in bin is executable
+  echo "📥 Moving custom scripts to ~/.local/bin/..."
+  for script in "$DOT_DIR/.local/bin"/*; do
+    [ -e "$script" ] || continue
+    script_name=$(basename "$script")
+    rm -f "$HOME/.local/bin/$script_name"
+    mv "$script" "$HOME/.local/bin/"
+  done
   chmod +x "$HOME/.local/bin/"*
 fi
 
-# 6. Copy Root Home Dotfiles (.bashrc, .gitconfig, etc.)
-echo "📥 Copying root home files..."
-HOME_FILES=(
-  ".bashrc"
-  ".bash_profile"
-  ".profile"
-  ".gitconfig"
-)
-
-for file in "${HOME_FILES[@]}"; do
-  if [ -f "$DOT_DIR/$file" ]; then
-    cp "$DOT_DIR/$file" "$HOME/"
-    echo "✅ Copied $file to $HOME/"
-  fi
-done
-
-# 7. Restore System-Level Configurations (/etc/)
+# =====================================================================
+# PHASE 5: Restore System-Level Configurations (/etc/)
+# =====================================================================
 if [ -d "$DOT_DIR/etc" ]; then
-  echo "📥 Restoring system configurations to /etc/..."
-  # Re-sync files directly back to system root with correct permissions
-  sudo rsync -av "$DOT_DIR/etc/" "/etc/"
+  echo "📥 Moving remaining system configurations to /etc/..."
 
-  # Regenerate kernel hooks and GRUB configurations since we overrode them
+  # Note: rsync acts exactly like an atomic mv/overwrite for nested tree structures
+  # without destroying the host folder architecture.
+  sudo rsync -av --remove-source-files "$DOT_DIR/etc/" "/etc/"
+
+  # Clean up empty directories left behind inside the dotfiles etc folder
+  find "$DOT_DIR/etc" -type d -empty -delete 2>/dev/null || true
+
   echo "⚙️ Rebuilding initramfs kernels..."
   sudo mkinitcpio -P
 
@@ -113,8 +139,10 @@ if [ -d "$DOT_DIR/etc" ]; then
   fi
 fi
 
-# 8. Enable Essential Background Services
+# =====================================================================
+# PHASE 6: Services Activation
+# =====================================================================
 echo "⚙️ Enabling core system services..."
 sudo systemctl enable NetworkManager || true
 
-echo "✨ System deployment complete! Reboots are highly recommended."
+echo "✨ System deployment complete! Your dotfile folder has been migrated."
