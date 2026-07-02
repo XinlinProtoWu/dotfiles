@@ -8,7 +8,7 @@ A complete backup of my system configuration, only for restoration on a fresh **
 * **Display Manager Choice:** Upon login, you will be prompted to choose between:
   * **Hyprland:** The main environment.
   * **i3wm:** A low-requirement X11 fallback for older hardware or resource-heavy tasks.
-* **Keybindings:** Both environments share a highly unified control scheme for muscle memory consistency. See the config files for specifics
+* **Keybindings:** Both environments share a highly unified control scheme for muscle memory consistency. See the config files for specifics.
 
 ---
 
