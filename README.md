@@ -24,7 +24,7 @@ The setup includes an automated `restore.sh` script that handles the entire depl
 
 ```bash
 # Clone the repository
-
+git clone https://github.com/XinlinProtoWu/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles/.local/bin/
 
 # Make the restore script executable and run it
