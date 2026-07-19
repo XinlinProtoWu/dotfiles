@@ -1,0 +1,14 @@
+glava
+google-chrome
+mpvpaper
+protonup-rs
+psp-binutils
+psp-sdk-bin
+tokyonight-gtk-theme-git
+topgrade-bin
+vencord
+waypaper
+woomer
+yay
+yay-debug
+yazi-nightly-bin

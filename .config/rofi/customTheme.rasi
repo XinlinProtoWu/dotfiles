@@ -1,0 +1,124 @@
+/**
+ * Tokyo Night theme for Rofi
+ * Color palette inspired by folke/tokyonight.nvim
+ */
+
+* {
+    /* Tokyo Night Color Palette */
+    bg:          #1a1b26dd;
+    bg-dark:     #16161e;
+    bg-sel:      #292e42;
+    fg:          #c0caf5;
+    fg-alt:      #565f89;
+    blue:        #7aa2f7;
+    cyan:        #7dcfff;
+    magenta:     #bb9af7;
+    urgent:      #f7768e;
+
+    /* Global properties */
+    background-color:   transparent;
+    text-color:         @fg;
+    font:               "JetBrainsMono Nerd Font 11";
+
+    margin:     0;
+    padding:    0;
+    spacing:    0;
+}
+
+window {
+    width:            500px;
+    transparency:     "real";
+    background-color: @bg;
+    border:           2px;
+    border-color:     @blue;
+    border-radius:    10px;
+    cursor:           "default";
+}
+
+mainbox {
+    padding:  20px;
+    children: [ inputbar, listview ];
+}
+
+/* --- Input Bar / Search Field --- */
+inputbar {
+    background-color: @bg-dark;
+    padding:          12px;
+    border-radius:    6px;
+    border:           1px;
+    border-color:     #414868;
+    children:         [ prompt, entry ];
+    spacing:          10px;
+}
+
+prompt {
+    text-color: @magenta;
+    font:       "JetBrainsMono Nerd Font Bold 11";
+}
+
+entry {
+    text-color:        @fg;
+    placeholder:       "Search applications...";
+    placeholder-color: @fg-alt;
+    cursor:            text;
+}
+
+/* --- Results List --- */
+listview {
+    lines:        8;
+    columns:      1;
+    fixed-height: true;
+    margin:       15px 0px 0px 0px;
+    spacing:      4px;
+    cursor:       "default";
+}
+
+element {
+    padding:       8px 12px;
+    border-radius: 6px;
+    cursor:        pointer;
+    orientation:   horizontal;
+    spacing:       12px;
+}
+
+/* Element States */
+element normal.normal {
+    background-color: transparent;
+    text-color:        @fg;
+}
+
+element alternate.normal {
+    background-color: transparent;
+    text-color:        @fg;
+}
+
+element selected.normal {
+    background-color: @bg-sel;
+    text-color:        @cyan;
+    border:           0px 0px 0px 3px;
+    border-color:     @cyan;
+}
+
+element normal.urgent, element alternate.urgent {
+    background-color: transparent;
+    text-color:        @urgent;
+}
+
+element selected.urgent {
+    background-color: @bg-sel;
+    text-color:        @urgent;
+}
+
+/* --- Text & Icon Scaling --- */
+element-icon {
+    size:             24px;
+    horizontal-align: 0.5;
+    vertical-align:   0.5;
+    cursor:           inherit;
+}
+
+element-text {
+    text-color:       inherit;
+    vertical-align:   0.5;
+    cursor:           inherit;
+}

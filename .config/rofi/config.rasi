@@ -1,0 +1,11 @@
+configuration {
+    modes: "drun,run,window";
+    show-icons: true;
+    icon-theme: "Papirus-Dark"; /* Or your preferred icon pack */
+    drun-display-format: "{name}";
+    disable-history: false;
+    hide-scrollbar: true;
+    sidebar-mode: false;
+}
+
+@theme "~/.config/rofi/customTheme.rasi"

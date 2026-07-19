@@ -1,0 +1,16 @@
+[general]
+bars = 24
+framerate = 60
+
+[output]
+method = ncurses
+
+[color]
+gradient = 1
+gradient_count = 3
+gradient_color_1 = '#7dcfff' # Cyan
+gradient_color_2 = '#7aa2f7' # Blue
+gradient_color_3 = '#bb9af7' # Purple
+
+[font]
+bar_delim_width = 1
