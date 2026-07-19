@@ -1,0 +1,14 @@
+glava
+google-chrome
+linux-wallpaperengine-git
+mpvpaper
+protonup-rs
+tokyonight-gtk-theme-git
+topgrade-bin
+vencord
+ventoy-bin
+waypaper
+woomer
+yay
+yay-debug
+yazi-nightly-bin
