@@ -1,0 +1,82 @@
+version: 3
+theme: "Tokyo Night"
+margin: 0
+transparent_background: true
+pdf_scale: 1
+pdf_pan_shift: 0
+pdf_render_mode: scroll
+pdf_page_layout_mode: single
+epub_column_mode: single
+pdf_enabled: true
+pdf_settings_configured: true
+justify_text: false
+invert_scroll_direction: false
+book_sort_order: by_name
+
+# ============================================================================
+# Lookup Command
+# ============================================================================
+# Shell command to run when you press Space+l on selected text.
+# Use {} as a placeholder for the selected word. If no {} is present,
+# the selected text is appended as a shell-escaped argument.
+#
+# lookup_display controls how output is shown:
+#   popup          - capture stdout and show in a scrollable popup (default)
+#   fire_and_forget - spawn command and move on (e.g., open a browser)
+#
+# Example: CLI dictionary (output shown in popup)
+#   lookup_command: "dict {}"
+#   lookup_display: popup
+#
+# Example: macOS Dictionary.app
+#   lookup_command: "open dict://{}"
+#   lookup_display: fire_and_forget
+#
+# Example: online dictionary in browser
+#   lookup_command: "open 'https://www.merriam-webster.com/dictionary/{}'"
+#   lookup_display: fire_and_forget
+
+# ============================================================================
+# SyncTeX inverse search: editor command to run when you Ctrl+click,
+# secondary-click, or press 'gd' on a PDF rendered from LaTeX.
+# Placeholders: {file}, {line}, {column}
+#
+# Example: neovim via remote socket
+#   synctex_editor: "nvim --server /tmp/nvim.sock --remote-send '<C-\\><C-n>:e {file}<CR>:{line}<CR>'"
+#
+# Example: open in new terminal nvim
+#   synctex_editor: "nvim +{line} {file}"
+
+
+# ============================================================================
+# Custom Themes
+# ============================================================================
+# Add your own themes below. Find Base16 themes at:
+# https://github.com/tinted-theming/schemes
+#
+# To add a theme, uncomment and edit the lines below:
+#
+custom_themes:
+- scheme: "Tokyo Night"
+  author: "folke (Base16 adaptation)"
+  base00: "1A1B26"    # Main background
+  base01: "16161E"    # Darker background
+  base02: "2F3549"    # Selection background
+  base03: "444B6A"    # Comments
+  base04: "787C99"    # Dark foreground
+  base05: "7DCFFF"    # Default text
+  base06: "C0CAF5"    # Light foreground
+  base07: "D5D6DB"    # Brightest text
+  base08: "F7768E"    # Red
+  base09: "FF9E64"    # Orange
+  base0A: "E0AF68"    # Yellow
+  base0B: "9ECE6A"    # Green
+  base0C: "7DCFFF"    # Cyan
+  base0D: "7AA2F7"    # Blue
+  base0E: "BB9AF7"    # Purple
+  base0F: "C53B53"    # Dark red / accent
+
+nav_panel_width: 5
+lookup_command: null
+lookup_display: popup
+synctex_editor: null

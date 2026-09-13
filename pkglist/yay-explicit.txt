@@ -1,3 +1,6 @@
+bookokrat-bin
+brother-dcpl2520dw
+clash-verge-rev
 glava
 google-chrome
 linux-wallpaperengine-git
@@ -5,6 +8,7 @@ mpvpaper
 protonup-rs
 tokyonight-gtk-theme-git
 topgrade-bin
+vagrant
 vencord
 ventoy-bin
 waypaper

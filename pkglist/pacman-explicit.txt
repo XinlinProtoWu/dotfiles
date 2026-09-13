@@ -13,6 +13,7 @@ brightnessctl
 catnip
 chafa
 clang
+cloc
 cmake
 conky
 cuda
@@ -31,6 +32,7 @@ docker
 docker-buildx
 docker-compose
 efibootmgr
+evince
 fastfetch
 fcitx5
 fcitx5-chinese-addons
@@ -61,12 +63,14 @@ hyprlock
 hyprpaper
 hyprpicker
 hyprshot
+hyprshutdown
 i3-wm
 i3status
 imagemagick
 intel-gpu-tools
 intel-media-driver
 intel-undervolt
+jupyter-notebook
 kitty
 komikku
 lazygit
@@ -103,6 +107,7 @@ nvidia-container-toolkit
 nvidia-open-dkms
 nvidia-utils
 nwg-look
+obsidian
 openbsd-netcat
 openssh
 os-prober
@@ -139,6 +144,7 @@ tumbler
 unrar
 unzip
 vim
+virtualbox
 vulkan-intel
 waybar
 wireplumber

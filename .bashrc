@@ -13,6 +13,17 @@ export DEVKITPRO=/opt/devkitpro
 export DEVKITARM=$DEVKITPRO/devkitARM
 # For window creation with SDL2
 export SDL_VIDEODRIVER=wayland
+#PROXY
+export http_proxy="http://127.0.0.1:7897"
+export https_proxy="http://127.0.0.1:7897"
+export all_proxy="socks5://127.0.0.1:7897"
+
+export HTTP_PROXY="$http_proxy"
+export HTTPS_PROXY="$https_proxy"
+export ALL_PROXY="$all_proxy"
+
+export no_proxy="localhost,127.0.0.1,::1"
+export NO_PROXY="$no_proxy"
 # PSP SDK Configuration
 if [ -f /etc/profile.d/pspdev.sh ]; then
   source /etc/profile.d/pspdev.sh

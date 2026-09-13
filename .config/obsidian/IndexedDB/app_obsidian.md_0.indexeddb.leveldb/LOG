@@ -1,0 +1,24 @@
+2026/09/10-21:26:22.388 c2ec Reusing MANIFEST /home/xinuwu/.config/obsidian/IndexedDB/app_obsidian.md_0.indexeddb.leveldb/MANIFEST-000001
+2026/09/10-21:26:22.388 c2ec Recovering log #13
+2026/09/10-21:26:22.432 c2ec Reusing old log /home/xinuwu/.config/obsidian/IndexedDB/app_obsidian.md_0.indexeddb.leveldb/000013.log 
+2026/09/10-22:20:47.354 c2ee Level-0 table #19: started
+2026/09/10-22:20:47.400 c2ee Level-0 table #19: 1175649 bytes OK
+2026/09/10-22:20:47.406 c2ee Delete type=0 #13
+2026/09/10-22:30:35.895 c2ec Compacting 1@1 + 1@2 files
+2026/09/10-22:30:35.931 c2ec Generated table #20@1: 902 keys, 67109 bytes
+2026/09/10-22:30:35.931 c2ec Compacted 1@1 + 1@2 files => 67109 bytes
+2026/09/10-22:30:35.934 c2ec compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/09/10-22:30:35.934 c2ec Delete type=2 #16
+2026/09/10-22:30:35.935 c2ec Delete type=2 #19
+2026/09/11-02:48:09.115 c2ec Level-0 table #22: started
+2026/09/11-02:48:09.137 c2ec Level-0 table #22: 1281719 bytes OK
+2026/09/11-02:48:09.143 c2ec Delete type=0 #18
+2026/09/11-02:49:41.716 c2ec Compacting 1@1 + 1@2 files
+2026/09/11-02:49:41.730 c2ec Generated table #23@1: 976 keys, 65380 bytes
+2026/09/11-02:49:41.730 c2ec Compacted 1@1 + 1@2 files => 65380 bytes
+2026/09/11-02:49:41.732 c2ec compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/09/11-02:49:41.733 c2ec Delete type=2 #22
+2026/09/11-02:49:41.733 c2ec Delete type=2 #20
+2026/09/11-04:25:25.275 c2ee Level-0 table #25: started
+2026/09/11-04:25:25.300 c2ee Level-0 table #25: 1192827 bytes OK
+2026/09/11-04:25:25.303 c2ee Delete type=0 #21
