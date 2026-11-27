@@ -33,7 +33,7 @@ roots, external installers. Edit that, not the scripts.
 | `home/`              | `~/`                            | `.bashrc`, `.gitconfig`, …             |
 | `agents/`            | `~/.agents/`                    | pi skills (`~/.agents/skills`)         |
 | `pi/`                | `~/.pi/agent/`                  | settings, keybindings, mcp, skills, …  |
-| `vaults/<rel>/`      | `$HOME/<rel>/.obsidian`         | Obsidian config + plugins, **no notes**|
+| `vaults/<rel>/`      | `$HOME/<rel>/`                  | Obsidian notes + config + plugins      |
 | `etc/`               | `/etc`                          | only with `dots pull --system`         |
 | `manifests/`         | —                               | package + dependency manifests         |
 | `profiles/<host>/`   | overlay applied last            | machine-specific overrides             |
@@ -52,8 +52,11 @@ roots, external installers. Edit that, not the scripts.
     `nvim --headless "+Lazy! restore" +qa`.
   * Pi: agent settings/keybindings/MCP/extensions + `~/.agents/skills`; then
     `pi install npm:…` for every package in `manifests/pi-packages.txt`.
-  * Obsidian: every `.obsidian` directory under `VAULT_ROOTS` (config, hotkeys,
-    community plugins, themes, snippets) — vault notes are left alone.
+  * Obsidian: every vault under `VAULT_ROOTS` — notes, attachments and the
+    `.obsidian` configuration (hotkeys, community plugins, themes, snippets).
+    Build artefacts, nested `.git` repos, `.trash`, caches and files above
+    `VAULT_MAX_FILE_MB` (25 MB) stay local and are reported by `dots push`.
+    Set `VAULT_SYNC_NOTES=0` to version only the vault settings.
   * systemd user units that are enabled.
 
 ## Machine-specific stuff
@@ -76,6 +79,38 @@ profiles/<host>/packages.aur.txt    # extra AUR packages
 profiles/<host>/pre-pull.sh         # executable hooks
 profiles/<host>/post-pull.sh
 ```
+
+## Daily sync
+
+Think of `~/.dotfiles` as a shared, git-backed view of every machine.
+
+```bash
+# machine A, end of work
+dots push
+
+# machine B, start of work
+dots pull
+dots status        # optional: what changed locally since the last push
+```
+
+`push` = snapshot this machine → `git add/commit` → `git pull --rebase` →
+`git push`. `pull` = `git pull` → install missing packages → overwrite configs
+(backups kept) → restore LazyVim/pi/Obsidian. Both are idempotent; running them
+twice is harmless.
+
+When two machines edited the **same** file, the rebase in `push` stops with a
+conflict instead of silently dropping work:
+
+```bash
+cd ~/.dotfiles
+git status                 # files in conflict
+# edit, then:
+git add <file> && git rebase --continue
+git push
+```
+
+`dots pull` never deletes destination files, so notes/configs created locally
+survive a pull; `push` mirrors deletions from the machine you push from.
 
 ## Safety guarantees
 
