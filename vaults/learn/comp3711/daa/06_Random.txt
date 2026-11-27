@@ -1,0 +1,359 @@
+COMP 3711 Design and Analysis of Algorithms
+
+
+
+
+       Intro to Randomized Algorithms
+                   A quick review of probability theory
+
+Expectation. Given a discrete random variables 𝑋, its expectation 𝐸[𝑋]
+is defined as:
+                         𝐸 𝑋 = ෍ 𝑖 ⋅ Pr[𝑋 = 𝑖]
+
+Q: Roll a 6-sided dice. What is the expected value?
+                    1
+A: 𝐸 𝑋 = σ6𝑖=1 𝑖 ⋅ 6 = 3.5
+
+Q: Roll two dice. What is the expected maximum value?
+               1        3        5       7        9       11
+A: 𝐸 𝑋 = 1 ⋅ 36 + 2 ⋅ 36 + 3 ⋅ 36 + 4 ⋅ 36 + 5 ⋅ 36 + 6 ⋅ 36 = 4.47
+
+Q: Roll two dice. What is the expected total value?
+               1        2        3       4        5       6        5        4
+A: 𝐸 𝑋 = 2 ⋅ 36 + 3 ⋅ 36 + 4 ⋅ 36 + 5 ⋅ 36 + 6 ⋅ 36 + 7 ⋅ 36 + 8 ⋅ 36 + 9 ⋅ 36 + 10 ⋅
+3         2         1
+36
+   + 11 ⋅ 36
+             + 12 ⋅ 36
+                       =7
+
+
+
+
+                                                                                        2
+                     Expectation: Two Properties
+
+Indicator random variables. If 𝑋 only takes 0 or 1, 𝐸[𝑋] = Pr[𝑋 = 1].
+Linearity of expectation. Given two random variables 𝑋 and 𝑌 (not
+necessarily independent),
+                        𝐸[𝑋 + 𝑌] = 𝐸[𝑋] + 𝐸[𝑌].
+
+Remark: 𝐸[𝑋𝑌] = 𝐸[𝑋]𝐸[𝑌] when 𝑋 and 𝑌 are independent.
+
+Example. Shuffle a deck of 𝑛 cards; turn them over one at a time; try
+to guess each card. Suppose you can't remember what's been turned
+over already, and just guess a card from full deck uniformly at random.
+
+Q. What’s the expected number of correct guesses?
+
+A. (surprisingly effortless using linearity of expectation)
+  Let 𝑋𝑖 = 1 if 𝑖 th guess is correct and 0 otherwise.
+  Let 𝑋 = number of correct guesses = 𝑋1 + ⋯ + 𝑋𝑛 .
+  𝐸[𝑋𝑖 ] = Pr[𝑋𝑖 = 1] = 1/𝑛.
+  𝐸[𝑋] = 𝐸[𝑋1 ] + ⋯ + 𝐸[𝑋𝑛 ] = 1/𝑛 + ⋯ + 1/𝑛 = 1.
+
+                                                                          3
+                       Guessing Cards with Memory
+
+Guessing with memory. Guess a card uniformly at random from cards
+not yet seen.
+
+Q. What’s the expected number of correct guesses?
+
+A.
+    Let 𝑋𝑖 = 1 if 𝑖 th guess is correct and 0 otherwise.
+    Let 𝑋 = number of correct guesses = 𝑋1 + ⋯ + 𝑋𝑛 .
+    𝐸[𝑋𝑖 ] = Pr[𝑋𝑖 = 1] = 1/(𝑛 − 𝑖 + 1).
+                                    1      1   1
+    𝐸[𝑋] = 𝐸[𝑋1 ] + ⋯ + 𝐸[𝑋𝑛 ] = 𝑛 + ⋯ + 2 + 1 = Θ(log 𝑛) .
+
+
+
+
+                                                                    4
+                          Hash Table with Chaining
+Goal: Store a set 𝑆 of 𝑛 keys or key-value pairs to support efficient
+lookups, where keys are drawn from 𝑈 = {0,1, … , 𝑢 − 1}.
+
+Hash function. ℎ ∶ 𝑈 → [𝑚], where 𝑚 = {0,1,2, … , 𝑚 − 1}
+
+Hash table. Create an array 𝑇 of size 𝑚. When processing key 𝑥,
+access 𝑇[ℎ(𝑥)].
+
+Collision. When ℎ(𝑥) = ℎ(𝑦) but 𝑥 ≠ 𝑦.
+  Chaining: 𝑇[𝑖] stores linked list of keys 𝑥 with ℎ(𝑥) = 𝑖.
+
+                   T[0]    51230   12350
+
+                   T[1]    null
+
+
+                   T[2]    12352    562        122
+
+
+
+
+                   T[9]     969
+
+
+
+ Implemented in C++ unordered_map and unordered_set
+
+                                                                        5
+ Analysis of Chaining under Simple Uniform Hashing Assumption
+
+Simple Uniform hashing assumption (a.k.a. random oracle):
+  For any 𝑥, ℎ(𝑥) is uniformly distributed in [𝑚].
+  ℎ(0), ℎ(1), … , ℎ(𝑢 − 1) are mutually independent.
+
+Theorem: For any 𝑥 (may or may not exist in 𝑆), the expected number of
+                           𝑛
+keys colliding with 𝑥 is ≤ 𝑚.
+
+Pf: For each element 𝑦 in the hash table, define indicator random variable
+𝐼𝑦 = 1 if ℎ(𝑥) = ℎ(𝑦) and 0 otherwise.
+
+Then the expected number of collisions is
+                                          1   𝑛
+𝐸 σ𝑦∈𝑆,𝑦≠𝑥 𝐼𝑦 = σ𝑦∈𝑆,𝑦≠𝑥 𝐸[𝐼𝑦 ] = σ𝑦∈𝑆,𝑦≠𝑥 𝑚 ≤ 𝑚
+
+Corollary: Insert, delete, query take 𝑂(1 + 𝛼) time in expectation.
+
+Load factor: 𝛼 = 𝑛/𝑚. Often choose 𝑚 = Θ(𝑛) so 𝛼 is a constant.
+
+
+
+
+                                                                             6
+                          The Birthday Paradox
+
+Problem: Suppose there are 𝑛 = 365 days in a year, and in a room of 𝑘
+people, each person’s birthday falls in any one of the 𝑛 days with equal
+probability. How large should 𝑘 be for us to expect two people with the
+same birthday?
+
+Analysis:
+ Define 𝑋𝑖𝑗 = 1 if person 𝑖 and person 𝑗 have the same birthday, and 0
+  otherwise.
+ We know 𝐸 𝑋𝑖𝑗 = Pr 𝑋𝑖𝑗 = 1 = 1/𝑛.
+ Let 𝑋 = σ1≤𝑖<𝑗≤𝑘 𝑋𝑖𝑗 be the number of pairs of people having the
+  same birthday.
+ We have                               𝑘 1 𝑘(𝑘 − 1)
+               𝐸 𝑋 = 𝐸 ෍ 𝑋𝑖𝑗 =              =
+                                        2 𝑛      2𝑛
+                           1≤𝑖<𝑗≤𝑘
+
+             𝑘(𝑘−1) 𝑘−1 2
+    So, when 2𝑛 ≥ 2𝑛 ≥ 1, or 𝑘 ≥         2𝑛 + 1 ≈ 28, we expect to see at
+     least one pair of people having the same birthday.
+
+
+                                                                             7
+                            The Hiring Problem
+
+              Hire-Secretary(𝑛):
+              randomly permute all 𝑛 candiates
+              𝑏𝑒𝑠𝑡 ← 0
+              for 𝑖 ← 1 to 𝑛
+                   interview candidate 𝑖
+                   if candidate 𝑖 is better than 𝑏𝑒𝑠𝑡 then
+                       fire 𝑏𝑒𝑠𝑡
+                       hire candidate 𝑖
+                       𝑏𝑒𝑠𝑡 ← 𝑖
+
+Q: What’s the expected number of hires?
+
+A:
+    Let 𝑋𝑖 = 1 if you hire candidate 𝑖 and 0 otherwise.
+    Let 𝑋 = number of hires = 𝑋1 + ⋯ + 𝑋𝑛 .
+    𝐸[𝑋𝑖 ] = Pr[𝑋𝑖 = 1] = 1/𝑖. (Among the first 𝑖 candidates, the best has
+     probability 1/𝑖 to be placed at the last position.)
+                                      1        1    1
+    𝐸 𝑋 = 𝐸 𝑋1 + ⋯ + 𝐸 𝑋𝑛 = 1 + 2 + ⋯ + 𝑛−1 + 𝑛 = Θ(log 𝑛) .
+
+                                                                              8
+        How to Generate a Random Permutation
+
+    RandomPermute(𝐴):                               Generates a random number
+                                                    between 1 and 𝑖 uniformly.
+    𝑛 ← 𝐴. 𝑙𝑒𝑛𝑔𝑡ℎ
+    for 𝑖 ← 1 to 𝑛
+         swap 𝐴[𝑖] with 𝐴[𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 ]
+
+
+1   2    3   4   5    6   7   8   9   10   𝑖=1           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 1
+
+2   1    3   4   5    6   7   8   9   10   𝑖=2           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 1
+
+2   3    1   4   5    6   7   8   9   10   𝑖=3           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 2
+
+4   3    1   2   5    6   7   8   9   10   𝑖=4           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 1
+
+
+4   3    1   2   5    6   7   8   9   10   𝑖=5           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 5
+
+4   6    1   2   5    3   7   8   9   10   𝑖=6           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 2
+
+4   6    1   2   5    3   7   8   9   10   𝑖=7           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 7
+
+4   6    1   8   5    3   7   2   9   10   𝑖=8           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 4
+
+9   6    1   8   5    3   7   2   4   10   𝑖=9           𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 1
+
+9   6    1   8   10   3   7   2   4   5    𝑖 = 10       𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 5
+
+                                                                                 9
+                        How to Generate a Random Permutation
+
+                     RandomPermute(𝐴):                                    Generates a random number
+                                                                          between 1 and 𝑖 uniformly.
+                     𝑛 ← 𝐴. 𝑙𝑒𝑛𝑔𝑡ℎ
+                     for 𝑖 ← 1 to 𝑛
+                          swap 𝐴[𝑖] with 𝐴[𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 ]
+Analysis
+    𝑂(𝑛) time, 𝑂(1) working space
+
+Correctness:
+    Will prove by induction on 𝑖 that, after the 𝑖-th iteration, every permutation has
+     probability 1/𝑖!
+    Base case 𝑖 = 1: trivial
+    Consider any permutation (𝑎1 , … , 𝑎𝑖 ) for 𝐴 1. . 𝑖 . What’s Pr[𝐴 1. . 𝑖 = 𝑎1 , … , 𝑎𝑖 ] after
+     the 𝑖-th iteration?
+    Let 𝑗 be such that 𝑎𝑗 is the original 𝐴 𝑖
+    𝐴 1. . 𝑖 = 𝑎1 , … , 𝑎𝑖 after step 𝑖 iff 𝐴 1. . 𝑖 − 1 = 𝑎1 , … , 𝑎𝑗−1 , 𝑎𝑖 , 𝑎𝑗+1 , … , 𝑎𝑖−1 after step
+     𝑖 − 1 and 𝑅𝑎𝑛𝑑𝑜𝑚 1, 𝑖 = 𝑗
+    By induction hypothesis, the probability of former is 1/(𝑖 − 1)!
+    The probability of the latter is 1/𝑖.
+    Pr 𝐴 1. . 𝑖 = 𝑎1 , … , 𝑎𝑖 = 1Τ(𝑖 − 1)! ∙ 1Τ𝑖 = 1/𝑖!
+                                                                                                              10
+                            Geometric Distribution
+
+Q (waiting time for the first success): Coin is heads with probability 𝑝
+and tails with probability 1 − 𝑝. How many flips 𝑋 until first heads?
+
+A: E[ X ]=
+                            
+                                                            p                        p 1− p 1
+              jPr[ X = j ]= j(1 − p)
+             j =1            j =1
+                                                j −1
+                                                       p=       
+                                                          1 − p j =1
+                                                                     j (1 − p ) j
+                                                                                  =        =
+                                                                                    1 − p p2 p
+                                    j-1 tails          1 head
+
+
+
+Another way to compute expectation: If a random variable 𝑋 takes non-
+negative integer values, then
+                                                 ∞
+
+                                    𝐸 𝑋 = ෍ Pr[𝑋 ≥ 𝑖]
+                                                 𝑖=1
+                      ∞                         ∞
+                                                                         1       1
+             𝐸 𝑋 = ෍ Pr[𝑋 ≥ 𝑖] = ෍ 1 − 𝑝 𝑖−1 =                                 =
+                                                                    1 − (1 − 𝑝) 𝑝
+                     𝑖=1                    𝑖=1
+
+
+
+
+                                                                                                 11
+                           Coupon Collector
+
+Coupon collector. Each box of cereal contains a coupon. There are n
+different types of coupons. Assuming a box contains each type of
+coupon equally likely, how many boxes do you need to open to have at
+least one coupon of each type?
+
+Solution.
+  Stage 𝑖 = time between 𝑖 and 𝑖 + 1 distinct coupons.
+  Let 𝑋𝑖 = number of steps you spend in stage 𝑖.
+  Let 𝑋 = number of steps in total = 𝑋0 + 𝑋1 + ⋯ + 𝑋𝑛−1 .
+                   𝑛−1        𝑛−1           𝑛
+                              𝑛       1
+            𝐸 𝑋 = ෍ 𝐸 𝑋𝑖 = ෍     = 𝑛 ෍ = Θ(𝑛 log 𝑛)
+                             𝑛−𝑖      𝑖
+                   𝑖=0        𝑖=0          𝑖=1
+
+
+                            prob of success = (𝑛 − 𝑖)/𝑛
+                             expected waiting time = 𝑛/(𝑛 − 𝑖)
+
+
+
+
+                                                                       12
+                         The Majority Problem
+
+Problem: Given an array 𝐴[1. . 𝑛] of items, find the majority (i.e., appears
+> 𝑛/2 times), assuming it exists.
+
+Example: A A B C D B A A B B A A A A A A C C C D A B A A A
+
+Answer: A
+
+Solution 1: Sort and count (deterministic)
+   •  𝑂(𝑛 log 𝑛) time, 𝑂 1 space (will see such a sorting algorithm later)
+
+Solution 2: Hashing (randomized)
+   •  Build a map from items to counts (a hash table of size 𝑛)
+   •  Insert items into map and update counts
+   •  𝑂(𝑛) time in expectation, 𝑂 𝑛 space
+
+Solution 3: Try and check (randomized)
+   •  Pick an item from 𝐴 randomly
+   •  Count its frequency
+   •  If it is majority, return; else repeat
+   •  𝑂(𝑛) time in expectation, 𝑂 1 space
+                                                                               13
+                        Randomized Algorithms
+
+Q. What’s the worst-case running time of the try-and-check algorithm?
+
+A. Unbounded. But the probability of running for a long time is
+extremely small.
+
+Performance measurement of randomized algorithms: Expected
+time/space on the worst-case input of size 𝑛
+                          max𝐼,𝑠𝑖𝑧𝑒 𝐼 =𝑛 𝐸𝑅 [𝑇 𝐼, 𝑅 ]
+𝐼: input
+𝑅: algorithm’s internal randomness
+𝑇(𝐼, 𝑅): time/space of the algorithm on input 𝐼 with randomness 𝑅
+
+For many problems, randomized algorithms are often simpler and
+practically more efficient than deterministic algorithms
+   •  It remains an open problem whether randomized algorithms can
+      achieve an asymptotic speedup over deterministic algorithms
+   •  Hash table is a possible candidate - we don’t know if it is possible
+      to support insertion/deletion/lookup in O(1) time and O(n) space
+      deterministically
+                                                                             14
+                 Boyer–Moore Majority Vote Algorithm
+
+𝑐←0
+for 𝑖 ← 1 to 𝑛
+    if 𝑐 = 0 then 𝑚 ← 𝐴[𝑖]
+    else if 𝑚 = 𝐴 𝑖 then 𝑐 ← 𝑐 + 1
+    else 𝑐 ← 𝑐 − 1   (*)
+return 𝑚
+
+
+
+
+ 𝑂(𝑛) time worst-case, 𝑂(1) space
+
+ Correctness proof
+    • Invariant: 𝐴 1. . 𝑖 = (𝑐 copies of 𝑚) + items that have been cancelled
+    • Line (*) cancels 𝐴[𝑖] and one copy of 𝑚, and 𝐴 𝑖 ≠ 𝑚
+    • So for any item, at most 𝑛/2 copies can be cancelled
+    • Applying the invariant over 𝐴 1. . 𝑛 , the majority (assuming it exists)
+      must be 𝑚
+
+
+
+                                                                                 15
+

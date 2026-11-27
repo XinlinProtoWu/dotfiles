@@ -1,0 +1,356 @@
+COMP4611 · Fall 2026                                                                               Homework 1
+
+
+
+COMP4611 Homework 1
+Design and Analysis of Computer Architectures
+Fall 2026 • Total 100 points • TA in charge: Zihao Wang (zwangnw@connect.ust.hk)
+Name ____________________ Student ID ____________________
+Answer all questions. For Questions 1–10, select exactly one option; each is worth 3 points. Show your
+reasoning and calculations for Questions 11 and 12. Use the spaces provided; attach additional, clearly
+labelled pages if needed. No simulator is required.
+Question 11: MIPS — 30 points. Question 12: Circuit timing — 40 points.
+
+Part A Single choice questions
+ Question          1      2         3        4         5         6         7         8         9          10
+  Answer
+
+
+1. A CMOS inverter’s input is held at logic 0. After the circuit has settled, which statement is
+correct under the switch model used in Lecture 2?
+   A. The nMOS is ON, the pMOS is OFF, and the output is 1.
+   B. Both transistors are OFF, and the output is 0.
+   C. The pMOS is ON, the nMOS is OFF, and the output is 1.
+   D. Both transistors are ON, and the output is Z.
+
+2. Which Boolean function equals Z in the circuit below? The decoder is enabled and has active-
+high outputs. Y1 and Y2 feed an OR gate.
+                                                                 A. A1 AND A0
+                                                                 B. A1 OR A0
+                                                                 C. A1 XOR A0
+                                                                 D. NOT (A1 OR A0)
+
+
+
+
+3. The circuit below has one-bit inputs E, A and B. Which input patterns EAB make Y = 1? The
+triangle with a circle is a NOT gate. Each MUX selects input 0 or 1 according to its select signal.
+                                                                 A. 001 and 010 only
+                                                                 B. 100 and 111 only
+                                                                 C. 100, 101, 110 and 111 only
+                                                                 D. 101 and 110 only
+
+
+
+
+4. Several devices share a bus through tri-state output buffers. Which rule prevents conflicting
+output drivers?
+   A. Exactly one receiver may observe the bus at a time.
+   B. At most one output driver is enabled; all other output drivers are in Z.
+   C. All output drivers are enabled whenever the clock is high.
+   D. An output in Z actively drives logic 0.
+
+
+Lectures 2 and 3                                                                                    Page 1 of 8
+COMP4611 · Fall 2026                                                                             Homework 1
+
+
+5. An FSM starts in S0 and follows the table below. Input x is sampled as 1, 0, 1 at three
+successive rising edges. What are the state and output y once the circuit has settled after the third
+edge?
+Current state        Next state if x = 0            Next state if x = 1            Output y
+
+S0                   S0                             S1                             0
+S1                   S0                             S2                             0
+
+S2                   S0                             S2                             1
+
+   A. State S0, y = 0
+   B. State S2, y = 1
+   C. State S1, y = 0
+   D. State S1, y = 1
+
+6. A rising-edge-triggered D flip-flop stores Q = 0. D changes to 1 halfway between two rising
+edges and satisfies the next edge’s setup and hold requirements. What happens?
+   A. Q remains 0 until the next rising edge, then becomes 1 after the clock-to-Q delay.
+   B. Q immediately becomes 1 when D changes.
+   C. Q becomes 1 at the next falling edge.
+   D. Q stays 0 permanently unless reset is asserted.
+
+7. Initially, $s0 = 0x10010000, and memory stores the 32-bit value 9 at byte address 0x10010004.
+After executing lw $t0, 4($s0) followed by add $t1, $t0, $t0, what are the final contents of $t0, $t1,
+and the word at memory address 0x10010004, respectively?
+   A. 9, 18, 18
+   B. 9, 18, 9
+   C. 4, 8, 9
+   D. 18, 18, 9
+
+8. A memory is byte-addressable and uses 12-bit addresses. How many bytes are in its address
+space?
+   A. 512 bytes
+   B. 4096 bytes
+   C. 16384 bytes
+   D. 4096 words of 32 bits each
+
+9. A 16-bit immediate has bit pattern 0xFFF8. What is its 32-bit sign-extended bit pattern?
+   A. 0xFFFFFFF8
+   B. 0x0000FFF8
+   C. 0xFFFF0008
+   D. 0x00000008
+
+10. What does lwc1 $f2, 8($s0) do in the MIPS model used in Lecture 3?
+   A. It adds the floating-point value 8.0 to $f2.
+   B. It reads an integer from address $s0 + 8 and numerically converts it to a floating-point value.
+   C. It computes the address using $f2 and stores a word in $s0.
+   D. It copies a 32-bit word from byte address $s0 + 8 into $f2 without a numeric conversion.
+
+
+
+
+Lectures 2 and 3                                                                                  Page 2 of 8
+COMP4611 · Fall 2026                                                                               Homework 1
+
+
+Question 11 MIPS program and encoding
+30 points
+Use a 32-bit, byte-addressable MIPS model with 4-byte instructions. When a branch is taken or a jump
+executes, the next instruction executed is at its target address. PC denotes the address of the current
+instruction. A is an array of 32-bit signed integers. All addresses are valid and aligned, and no arithmetic
+operation overflows.
+Initially, $s0 contains the base address of A, and $s1 contains b. The final value of result must be held in
+$s2. The values of $s0 and $s1 must be preserved.
+if (A[2] != b) {
+    A[2] = A[2] + b;
+}
+result = A[2];
+
+The following instruction sequence implements the code. Each blank is a byte offset, written as a
+decimal immediate.
+
+Address            Label   Instruction
+
+0x00400020                 lw $t0, ______($s0)
+
+0x00400024                 beq $t0, $s1, done
+
+0x00400028                 add $t0, $t0, $s1
+
+0x0040002C                 sw $t0, ______($s0)
+
+0x00400030         done    add $s2, $t0, $zero
+
+
+(a) Fill in both offsets. Explain how the array index determines the effective byte address of A[2]. [4
+points]
+
+
+
+
+(b) Trace the sequence for each independent initial state below. For each case, give the addresses of all
+instructions that execute, the final value of $s2, and the final word stored at A[2]. Reset the state before
+starting the second case. [8 points]
+
+Case      $s0                                    $s1                  Initial A[2]
+
+I         0x10010000                             7                    5
+II        0x10010000                             7                    7
+
+Case     Executed instruction addresses in order                      Final $s2          Final A[2]
+
+
+I
+
+
+
+II
+
+
+
+Use the instruction-format reference on the next page for part (c).
+
+
+
+
+Lectures 2 and 3                                                                                      Page 3 of 8
+COMP4611 · Fall 2026                                                                                   Homework 1
+
+
+Reference for this question
+
+Format        Fields from bit 31 to bit 0
+
+R             opcode (6), rs (5), rt (5), rd (5), shamt (5), funct (6)
+
+I             opcode (6), rs (5), rt (5), immediate (16)
+
+
+Instruction                               Opcode       Additional information
+
+add rd, rs, rt                            0            funct = 32; shamt = 0
+lw rt, offset(rs)                         35           Sign-extend the byte offset
+
+sw rt, offset(rs)                         43           Sign-extend the byte offset
+beq rs, rt, label                         4            Branch when the two register values are equal
+
+
+Register numbers: $zero = 0, $t0 = 8, $t1 = 9, $s0 = 16, $s1 = 17, $s2 = 18.
+For beq, if the branch is taken:
+target address = (PC + 4) + sign-extend(immediate) × 4
+PC is the address of the branch instruction.
+(c) Use the instruction-format reference to answer the following questions. [10 points]
+    (i)   Encode the completed lw instruction at 0x00400020. Show every field in decimal and give the
+          final 8-digit hexadecimal machine code. [4 points]
+    (ii) Encode the add instruction at 0x00400028. Show every field in decimal and give the final 8-digit
+         hexadecimal machine code. [4 points]
+    (iii) Determine the signed decimal value of the 16-bit immediate field in beq $t0, $s1, done at
+          0x00400024. Show your calculation. No hexadecimal machine code is required for this
+          instruction. [2 points]
+
+
+
+
+Lectures 2 and 3                                                                                       Page 4 of 8
+COMP4611 · Fall 2026                                                                             Homework 1
+
+
+(d) Rewrite the original five-instruction sequence using $s2 to hold the loaded value and the addition
+result, so that the final copy instruction add $s2, $t0, $zero is no longer needed. Give a four-instruction
+sequence using lw, beq, add and sw that implements the same C code for all valid inputs. Preserve $s0
+and $s1. Place the label done: immediately after your last instruction. A label is not an instruction, so
+done: does not count toward the four instructions. No numeric instruction addresses or machine code are
+required. [4 points]
+
+
+
+
+(e) Assume A has at least 8193 elements, with its base address still in $s0. [4 points]
+    (i) Can lw $t0, 32768($s0) load A[8192] as a single machine instruction? Explain using the signed
+         16-bit offset range. [2 points]
+    (ii) Give a two-instruction sequence using addi and lw to load A[8192] into $t0. Preserve $s0; use $t1
+         as a temporary. addi adds a sign-extended 16-bit immediate to a register. [2 points]
+
+
+
+
+Lectures 2 and 3                                                                                  Page 5 of 8
+COMP4611 · Fall 2026                                                                                         Homework 1
+
+
+Question 12 Timing of two bit adders
+40 points
+Compare an ordinary two-bit ripple-carry adder with an optimized version. Both add the unsigned
+operands A! A" and B! B" and produce the three-bit result C# S! S" . The initial carry is fixed at zero. Bit 0 is
+a half adder; bit 1 uses full-adder logic to add the high input bits and the carry from bit 0.
+
+
+
+
+                    Two-bit adder overview. The complete gate circuits are shown on the following pages.
+
+Each complete diagram shows all four launch registers, all three capture registers, and every logic gate.
+Trace the connected wires directly; no internal signal names are needed.
+
+Timing parameters unless stated otherwise
+
+Register parameter                                                                                         Value
+
+Maximum clock-to-Q delay, t $%&                                                                            30 ps
+
+Minimum clock-to-Q delay, t %%&                                                                            15 ps
+
+Setup time, t '()*$                                                                                        30 ps
+
+Hold time, t +,-.                                                                                          30 ps
+
+Current clock period, T%-/                                                                                 175 ps
+
+
+
+
+All registers share the same rising-edge clock, with zero clock skew. Ignore wire delays. Dots show connected
+branches; wire crossings without dots are not connected. There are no internal registers.
+Show each path using its input, gate types in order, and output, or mark it on the diagram. Add clock-to-Q
+separately in the setup and hold checks. Setup passes when T%-/ ≥ T012 ; overall PASS requires both
+setup and hold. Report frequencies in GHz to three decimal places. No Boolean derivation is required.
+
+
+
+
+Lectures 2 and 3                                                                                              Page 6 of 8
+COMP4611 · Fall 2026                                                                            Homework 1
+
+
+
+
+                   Figure 1 Complete ordinary adder. Follow the wires between the gates.
+(a) S" is given as an example. For each of S! and C# , give one maximum-delay path and calculate its
+latency. Then give a critical path with delay t $. and a shortest path with delay t %. . [12 points]
+
+                                                                                     Latency calculation
+Output                            One maximum-delay path
+                                                                                            (ps)
+
+     S"                                 A" → XOR → S"                                    1 × 50 = 50
+
+
+
+     S!
+
+
+     C#
+
+
+
+
+(b) Calculate the ordinary adder’s setup-limited minimum clock period and maximum frequency. Compare
+the minimum period with the current period of 175 ps and state setup PASS or FAIL. [8 points]
+                       T012 = t $%& + t $. + t '()*$ ;   f034 (GHz) = 1000 / T012 (ps)
+
+
+
+
+Lectures 2 and 3                                                                                 Page 7 of 8
+COMP4611 · Fall 2026                                                                                      Homework 1
+
+
+Figure 2 uses an added OR gate in place of the high-bit XOR in the carry branch. The XOR gates for the
+sums remain unchanged. Both circuits produce the same addition result for every input; analyse the
+supplied circuit directly.
+
+
+
+
+                   Figure 2 Complete optimized adder. The added OR gate changes only the carry branch.
+
+(c) Calculate the latency of EACH output in Figure 2: S" , S! and C# . For each, show a maximum-delay path
+and calculation. Identify the overall critical path and t $. . Calculate the minimum clock period and
+maximum frequency. Compare the minimum period with 175 ps and state setup PASS or FAIL. [12
+points]
+
+                                                                                            Latency calculation
+Output                               One maximum-delay path
+                                                                                                   (ps)
+
+     S"
+
+
+     S!
+
+
+     C#
+
+
+(d) Hold checks and a changed requirement. [8 points]
+    (i)   Use the shortest-path result from (a) and check whether it changes in Figure 2. For both adders,
+          calculate the earliest arrival, compare it with the register hold time, state hold PASS or FAIL, and
+          give the overall verdict at 175 ps. Shared calculations need only be shown once. [4 points]
+    (ii) Now change only the register hold time to 40 ps; all other parameters stay unchanged. For both
+         adders, compare the earliest arrival with the new hold time and state hold PASS or FAIL. Can
+         increasing the clock period alone make either adder operate correctly? Explain. [4 points]
+               Earliest arrival = t %%& + t %. ;   Hold PASS if t %%& + t %. ≥ t +,-. ; otherwise FAIL.
+
+
+
+
+Lectures 2 and 3                                                                                          Page 8 of 8
+

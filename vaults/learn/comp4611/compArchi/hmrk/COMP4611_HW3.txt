@@ -1,0 +1,285 @@
+COMP4611 · Fall 2026                                                                         Homework 3
+
+
+
+COMP4611 Homework 3
+Design and Analysis of Computer Architectures
+Fall 2026 • Questions 1–12 • 100 points
+Name ____________________ Student ID ____________________
+For Questions 1–10, select exactly one option and enter its letter in the answer grid. Each is worth 3
+points. Show your reasoning and calculations for Questions 11 and 12. No GPU hardware, CUDA
+compiler, or simulator is required.
+
+Part A Single choice questions
+ Question          1       2        3       4        5        6        7        8        9         10
+
+ Answer
+
+1. Which statement best explains how GPUs tolerate long global-memory access latency?
+  A. They use more sophisticated out-of-order execution for each thread than CPUs.
+  B. They reduce every global-memory access to one clock cycle.
+  C. They can issue instructions from another ready warp while one warp waits for memory.
+  D. All warps on an SM must execute the same instruction simultaneously.
+2. Which statement correctly distinguishes CPU SIMD and GPU SIMT programming?
+  A. CPU SIMD uses vector instructions, while GPU SIMT runs scalar-thread programs organized
+   into warps.
+  B. CPU SIMD requires a separate program counter for every vector lane.
+  C. GPU SIMT executes exactly one thread per SM.
+  D. GPU SIMT cannot execute conditional branches.
+3. A CUDA kernel processes a row-major image of width 64. Its block dimensions are (8, 4). A
+thread has blockIdx = (2, 1) and threadIdx = (3, 2). What is the linear array index of its pixel?
+   A. 19     B. 211    C. 531     D. 403
+
+4. What is the scope of __syncthreads() in the basic CUDA programming model?
+  A. Only threads in the same warp.
+  B. All threads in the same block.
+  C. All blocks in the kernel.
+  D. Both CPU and GPU threads.
+5. Why can an ordinary grid-wide barrier implemented inside a CUDA kernel cause deadlock?
+  A. All blocks always execute on the same SM.
+  B. GPU registers cannot be accessed by multiple threads.
+  C. Resident blocks may wait for blocks that have not yet been scheduled, while holding all
+   available resources.
+  D. Shared memory cannot be used for synchronization within a block.
+6. A 32-thread warp is executed on a simplified GPU with only eight arithmetic lanes.
+Assuming one group of eight thread operations can start per cycle, how many groups are
+needed for one warp instruction?
+   A. 4    B. 1    C. 8   D. 32
+
+7. Which statement correctly compares the L1 cache and shared memory on a GPU?
+  A. L1 cache is controlled by programmers, while shared memory is managed by hardware.
+  B. Both are located in off-chip global DRAM.
+
+
+Lectures 8 and 9                                                                     Page 1 of 6
+COMP4611 · Fall 2026                                                                     Homework 3
+
+
+  C. Shared memory is directly accessible by all blocks across all SMs.
+  D. L1 cache is hardware-managed, while shared memory is explicitly managed by programmers.
+8. Why can shared-memory tiling improve the performance of a GPU Gaussian-filter kernel?
+  A. It removes all arithmetic operations.
+  B. It allows neighboring threads to reuse input pixels that have already been loaded on chip.
+  C. It forces every GPU thread to execute a different instruction.
+  D. It guarantees 100% SM occupancy.
+9. Why can per-block privatization improve the performance of a GPU histogram kernel?
+  A. It guarantees that no atomic operations are necessary.
+  B. It removes the need to merge partial histograms.
+  C. It forces all thread blocks to execute one after another.
+  D. It reduces cross-block contention on a shared histogram, followed by a merge of per-block
+   histograms.
+10. A GPU task requires 8 ms for input transfer and 12 ms for kernel execution. The work is
+divided equally into four independent chunks, one CUDA stream per chunk. Assume an ideal
+two-stage pipeline with one transfer engine and one compute engine: each chunk must finish
+its transfer before its computation begins, while transfers and computations of different
+chunks may overlap. There is no overhead. Ignore output transfers. What is the total
+completion time?
+   A. 5 ms     B. 14 ms   C. 12 ms    D. 20 ms
+
+
+
+
+Lectures 8 and 9                                                                   Page 2 of 6
+COMP4611 · Fall 2026                                                                        Homework 3
+
+
+
+Question 11 GPU execution and SIMD utilization
+30 points
+Consider the following CUDA kernel. Arrays A and B each contain 128 integer elements:
+__global__ void kernel(const int *A, int *B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t % 2 == 0) {
+        B[t] = A[t] + 1;
+    } else {
+        B[t] = A[t] * 2;
+    }
+}
+
+kernel<<<4, 32>>>(A, B);
+
+
+For this question, use the following simplified GPU execution model:
+  Each warp contains 32 threads and uses 32 SIMD lanes; each block contains one warp.
+  Each warp issues one predicate instruction to evaluate t % 2 == 0.
+  Each branch body contains exactly one arithmetic instruction (addition or multiplication). A warp
+  issues that arithmetic instruction only if at least one of its threads takes the corresponding branch.
+  Every issued warp instruction occupies 32 lane slots and takes one cycle. Ignore all memory,
+  indexing, and other instructions.
+  SIMD utilization = (total active lane-instructions) / (total available lane slots over issued warp
+  instructions).
+(a) GPU thread organization. [6 points]
+(i) How many blocks, threads and warps are created? [3 points]
+
+
+
+(ii) What is the global thread ID of thread 5 in block 2? [3 points]
+
+
+
+(b) Branch divergence. [6 points]
+(i) For Warp 0 (global thread IDs 0–31), how many threads take the even and odd branches,
+respectively? [2 points]
+
+
+
+(ii) Do the other three warps have the same numbers of threads taking each branch? Explain briefly.
+[2 points]
+
+
+
+(iii) How many warp instructions does each warp issue under the given model? Explain. [2 points]
+
+
+
+
+Lectures 8 and 9                                                                      Page 3 of 6
+COMP4611 · Fall 2026                                                                         Homework 3
+
+
+(c) SIMD utilization. [6 points]
+Calculate the overall utilization. Show the active lane-instructions and available lane slots.
+
+
+
+
+(d) Dynamic warp formation. [4 points]
+Suppose dynamic warp formation is supported, but every thread must retain its original physical
+SIMD lane position. Can the active threads from different original warps be regrouped into fuller
+warps for either branch? Explain.
+
+
+
+
+(e) Improving SIMD utilization. [8 points]
+Now use the following alternative mapping from global thread ID t to data index j. Replace every
+array index and the branch-condition index t with j; all other assumptions remain unchanged.
+int j = (t < 64) ? 2 * t : 2 * (t - 64) + 1;
+if (j % 2 == 0) B[j] = A[j] + 1;
+else            B[j] = A[j] * 2;
+
+
+(i) Which warps execute each branch? [3 points]
+
+
+
+(ii) Calculate the new SIMD utilization. [3 points]
+
+
+
+
+(iii) Does this mapping preserve the output values? Explain. [2 points]
+
+
+
+
+Lectures 8 and 9                                                                       Page 4 of 6
+COMP4611 · Fall 2026                                                                      Homework 3
+
+
+
+Question 12 GPU memory access and performance
+40 points
+For this question, use the following simplified GPU memory model:
+  Each warp has 32 threads. Each float is a 32-bit (4-byte) value.
+  Global memory is divided into aligned 128-byte segments. One warp memory instruction touches
+  every segment containing at least one address accessed by that instruction.
+  Shared memory has 32 banks. Consecutive 32-bit words map to consecutive banks: bank =
+  word_index % 32.
+  Within one warp instruction, requests for different words in the same bank serialize; requests for an
+  identical word may be broadcast.
+  Ignore cache effects, bank-mapping details of particular GPU generations, and other hardware
+  limitations unless stated.
+(a) Global-memory coalescing. [12 points]
+An array X of at least 1,024 floats begins at a 128-byte-aligned address. One warp has threadIdx.x =
+0, 1, ..., 31. Analyze the three independent loads in the table below.
+(i) For each access, list the word indices requested, the number of distinct 128-byte segments
+touched, and a brief explanation. [9 points: 3 per access, 1 point for each of the three items]
+                                                           128B
+ Access and load                       Word indices                  Explanation
+                                                         segments
+
+
+ A value = X[threadIdx.x];
+
+
+
+
+ B value = X[32 * threadIdx.x];
+
+
+
+
+ C value = X[threadIdx.x + 1];
+
+
+
+(ii) For Access C, assume every touched segment transfers all 128 bytes. Find the useful bytes,
+bytes transferred, and useful-byte fraction. [3 points]
+
+
+
+(b) Shared-memory bank conflicts. [14 points]
+Two independent layouts use row-major shared-memory arrays; their base word indices both map to
+bank 0. A warp of threads t = threadIdx.x = 0, 1, ..., 31 reads the first column:
+// Layout A                               // Layout B
+__shared__ float tile[32][32];          __shared__ float tilePad[32][33];
+float a = tile[t][0];                   float b = tilePad[t][0];
+
+
+(i) Express the word offset, in 32-bit words, from each array’s base address accessed by thread t in
+each layout. [4 points]
+
+
+
+(ii) Determine the banks accessed and the conflict degree in Layout A. [4 points]
+
+
+
+Lectures 8 and 9                                                                    Page 5 of 6
+COMP4611 · Fall 2026                                                                       Homework 3
+
+
+
+
+(iii) Determine the banks accessed and the conflict degree in Layout B. [4 points]
+
+
+
+(iv) How many extra bytes are allocated by Layout B? [2 points]
+
+
+
+(c) SM occupancy. [10 points]
+Kernel U and Kernel V both use 256 threads per block. Each SM supports at most 64 resident warps,
+at most 8 resident thread blocks, and 64 KiB of shared memory. Register resources do not limit
+occupancy. Allocation has no rounding overhead. Kernel U requires 24 KiB of shared memory per
+block; Kernel V requires 16 KiB.
+Complete the table for both kernels and show your calculations. Marks are awarded by row as
+indicated below.
+ Quantity                                               Kernel U                     Kernel V
+
+
+ (i) Max resident blocks/SM [2 pts each]
+
+
+
+
+ (ii) Resident warps/SM [1 pt each]
+
+
+
+
+ (iii) SM occupancy [2 pts each]
+
+
+
+(d) Occupancy and performance. [4 points]
+Does Kernel V’s higher calculated occupancy guarantee faster execution than Kernel U? Explain in
+terms of latency hiding and possible bottlenecks.
+
+
+
+
+Lectures 8 and 9                                                                     Page 6 of 6
+

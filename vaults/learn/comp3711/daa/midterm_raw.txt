@@ -1,0 +1,355 @@
+HKUST – Department of Computer Science and Engineering #
+COMP3711: Design and Analysis of Algorithms – Spring 2026
+Midterm
+Date: March 19, 2026 Time: 19:30 -21:30
+Name: Student ID:
+Email: Lecture L1/L2
+Instructions
+• This is a closed book exam. It consists of 4 questions on 12 pages.
+• Please write your name, student ID and ITSC email at the top of this
+page.
+• At the top of every subsequent page that you use, please write your
+student ID in the space provided.
+• Please sign the honor code statement on page 2.
+• Answer all the questions within the space provided on the examination
+paper. You may use the back of the pages for your rough work.
+• Each question is on a separate page and most have at least one extra
+page for writing answers. These are provided for clarity and are not
+meant to imply that each question requires all of the blank pages. Many
+can be answered using much less space.
+• If you write your answers on the back of a page, please indicate con-
+spicuously what we should read. We ignore things written on the back
+of any page if there is no specific reference to a particular part of the
+back side that we should read.
+Questions 1 2 3 4 Total
+Points 10 10 20 20 60
+ScoreStudent ID:
+As part of HKUST’s introduction of an honor code, the HKUST Senate
+has recommended that all students be asked to sign a brief declaration printed
+on examination answer books that their answers are their own work, and that
+they are aware of the regulations relating to academic integrity. Following
+this, please read and sign the declaration below.
+I declare that the answers submitted for
+this examination are my own work.
+I understand that sanctions will be
+imposed, if I am found to have violated the
+University regulations governing academic
+integrity.
+Student’s Name:
+Student’s Signature:
+2Student ID:
+1. Asymptotic Analysis [10 points]
+(a) (5 points) We have two algorithms, A and B. Let TA(n) and TB(n)
+denote the time complexities of A and B respectively, with respect
+to the input size n. In the table shown below, there are four dif-
+ferent cases of time complexities for each algorithm. Complete the
+last column of the following table with “A”, “B”, or “U”, where:
+• “A” means that for large enough n, algorithm A is always
+faster;
+• “B” means that for large enough n, algorithm B is always
+faster;
+• “U” means that the information provided is not enough to
+justify stating that, for large enough n, one algorithm is always
+faster than the other;
+• We fill in the first line for you as an example.
+Case TA(n) TB(n) Faster
+0 Θ(n) Θ
+
+n2
+
+A
+1 Θ(n2
+/(logn)10
+) Θ
+
+n1.5
+
+2 Θ 2
+√
+n
+
+Θ 10
+3 √
+n
+
+3 O
+√
+logn
+
+Ω(log(logn))
+4 Θ(5n
+) Θ(7n
+)
+5 Θ(n2
+) TB(n) =
+
+2TB(n/2) + n if n > 1
+1 if n = 1
+Answer: 1-B, 2-B, 3-U, 4-A, 5-B.
+3Student ID:
+(b) (5 points) Derive the exact asymptotic solution for the following
+recurrence:
+
+
+
+∀n > 1, T(n) = 64 · T n
+4
+
++ n3
+;
+T(1) = 1.
+Assume that n is always an integral power of 4. Show your
+derivation from first principles. DO NOT use the Master Theorem
+for this part. Show all your steps. Write your final result in the
+form T(n) = Θ nα
+(logn)β
+
+for appropriate values of α and β.
+Answer:
+T(n) = 64 · T(n/4) + n3
+= 43
+· T(n/4) + n3
+= 46
+· T(n/42
+) + 43
+· (n/4)3
++ n3
+= 46
+· T(n/42
+) + 2n3
+= 49
+· T(n/43
+) + 46
+· (n/42
+)3
++ 2n2
+= 49
+· T(n/43
+) + 3n3
+= 43k
+· T(n/4k
+) + kn3
+.
+We hit the boundary condition of T(1) = 1 when k = log4 n. In this
+case, 43k
+= n3
+. Therefore, T(n) = n3
++ (log4 n)n3
+= Θ(n3
+logn).
+4Student ID:
+5Student ID:
+2. Randomization (10 points)
+Recall the coupon collector problem: Each box of cereal contains a
+coupon. There are n different types of coupons, and assume that a box
+contains each coupon equally likely. Consider the following variants of
+the problem.
+(a) (5 points) Derive the expected number of boxes you need to open
+to collect n/2 distinct coupons. Express your result in the form
+of Θ(nα
+(logn)β
+) for appropriate values of α and β. You have to
+argue for both upper and lower bounds.
+As in the lecture notes, let Xi be the number of boxes to open be-
+tween having i and i + 1 distinct coupons. We have E[Xi] = n
+n−i
+.
+So the answer is
+E[X0] + ··· + E[Xn/2−1] = n
+
+1
+n
++
+1
+n − 1
++ ··· +
+1
+n/2 + 1
+
+.
+We will show that 1
+n
++ 1
+n−1
++ ··· + 1
+n/2+1
+= Θ(1):
+1
+n
++ 1
+n−1
++ ··· + 1
+n/2+1
+≤ 1
+n/2
++ 1
+n/2
++ ··· + 1
+n/2
+= 1.
+1
+n
++ 1
+n−1
++ ··· + 1
+n/2+1
+≥ 1
+n
++ 1
+n
++ ··· + 1
+n
+= 1
+2
+.
+Thus, the answer is Θ(n).
+6Student ID:
+(b) (5 points) After opening n boxes, how many distinct coupons will
+we get in expectation? Derive the exact formula; do not use any
+asymptotic notation. (Hint: How many types of coupons will we
+not get?)
+Following the hint, let Xi = 1 if we do not get the i-th type of
+coupon. We don’t get the i-th coupon if all n boxes contain some-
+thing else, so E[Xi] = Pr[Xi] = (1 − 1/n)n
+. Thus the expected
+number of distinct coupons we will not get is E[X1 + ··· + Xn] =
+n(1 − 1/n)n
+, and the expected number of distinct coupons we will
+get is n − n(1 − 1/n)n
+, which is approximately (1 − 1/e)n ≈ 0.63n
+(this step is not required).
+7Student ID:
+3. Searching (20 points)
+Let A[1..n] be an array of n numbers in non-decreasing order. There are
+Θ(logn) distinct numbers in A[1..n], but you are NOT given the exact
+count of these distinct numbers. Design an algorithm for outputting
+the distinct numbers in A[1..n] as well as their frequencies in A[1..n].
+For example, given the following array A[1..10]:
+10 10 12 12 12 15 15 20 20 30
+Your algorithm should produce the following output:
+10 2
+12 3
+15 2
+20 2
+30 1
+Your algorithm should run in O((logn)2
+) time. Notice that the brute-
+force method of scanning the array from left to right would run in O(n)
+time, which is too slow. When designing your algorithm, keep in mind
+that the count of distinct numbers is NOT given to you. Explain the
+correctness and the running time of your algorithm.
+8Student ID:
+Let m denote the number of distinct numbers in A[1..n]. The algorithm
+constructs a sorted array B[1..n] of the distinct numbers in A[1..n].
+Each entry of B contains a key and a frequency. The key is the cor-
+responding number in A[1..n]. The frequency is the frequency of that
+number in A[1..n]. The entries in B are sorted in increasing order of
+keys. The construction of B works as follows.
+The sorted array A[1..n] appear as m contiguous subarrays, each con-
+taining duplicates of a distinct element. That is, A[1..k1] contains the
+duplicates of the smallest distinct element, A[k1+1..k2] contains the du-
+plicates of the second distinct element, ..., and A[km−1 +1..n] contains
+the duplicates of the largest distinct element. Our task is to determine
+m, the values of k1,k2,...,km−1, and the distinct elements.
+Clearly, B[1] should store A[1] as the key. We determine the index k1
+in O(logn) time by calling the following pseudo-code Search(A,p,r,x).
+The precondition for invoking Search(A,p,r,x) is that A[p] = x and
+p ≤ r. Search determines the index k ∈ [p,r] such that A[k] = x, and
+either k = r or A[k + 1] > x.
+Search(A,p,r,x)
+if p = r or A[r] = x then
+return r
+else
+q ← b(p + r)/2c
+if A[q] = x then
+if A[q + 1] > x then
+return q
+else
+return Search(A,q + 1,r,x)
+end if
+else
+return Search(A,p,q − 1,x)
+end if
+end if
+We make the top level call Search(A,1,n,A[1]) to obtain k1. Since
+each recursive call of Search halves the input range of indices, and
+only O(1) work is done at each recursion level, the running time of
+Search(A,1,n,A[1]) is O(logn). Then, the frequency to be stored at
+9B[1] is k1.
+The second contiguous subarray starts at A[k1 + 1]. So we make the
+top level call Search(A,k1 + 1,n,A[k1 + 1]) to obtain k2 in O(logn)
+time. Afterwards, we store A[k1 + 1] as the key value and k2 − k1 as
+the frequency at B[2].
+We continue in the above manner until some top level call Search(A,ki+
+1,n,A[ki +1]) outputs n as the returned value. When this happens, we
+have determined the last contiguous subarray. So m = i. We store the
+key A[ki + 1] and its frequencey n − ki at B[i]. Then, we stop.
+The determination of each entry of B takes O(logn) time. There are
+m = Θ(logn) entries to be determined. So the total running time is
+O(log2
+n).
+10Student ID:
+4. Heaps (20 points)
+(a) (8 points) Insert the sequence 5,8,1,4,7,3,2,6 in this order into an
+initially empty min-heap. Draw the binary tree after each insertion.
+For each insertion, you do not need to show any intermediate step.
+If you draw only the final tree after all numbers are inserted, you
+will lose points.
+5 5
+8
+1
+8
+3
+5
+1
+8
+5 4
+7
+3
+5 3
+8
+1
+8
+5 4
+7
+1
+8
+4 2
+5 7
+1
+8
+4
+3
+2
+5 7
+1
+6
+4
+Deduct 0.5 points for each mistake.
+(b) (12 points) Let A[1..n] be an unsorted array of n distinct numbers.
+Describe an algorithm that returns the largest dlog2 ne numbers in
+11A[1..n] in O(nlog(logn)) time. Derive the running time of your
+algorithm to show that it is indeed O(nlog(logn)).
+You can use any algorithm that has been taught in class without
+giving the details. If you use any algorithm that has not been
+taught or analyzed in class, you have to explain in detail how it
+works and provide the analysis of its running time.
+First, for i = 1 to n/log2 n, sort subarray A[1+(i−1)log2 n..ilog2 n]
+in increasing order, which takes O(logn · loglogn) time. Let Bi
+be an array of log2 n ordered pairs such that Bi[j] = (i,A[(i −
+1)log2 n + j]). Summing over i ∈ [1,n/log2 n], the total time is
+O(nloglogn).
+Second, initialize a heap H that consists of the first ordered pair in
+every Bi. Initialize a pointer pi = 1 + (i − 1)log2 n for each i ∈
+[1,n/log2 n]. The heap follows the min-heap order on the second
+component of each ordered pair. This requires n/log2 n insertions,
+which takes O((n/logn) · logn) = O(n) time.
+Third, perform an extract min on H. Let (i,v) be the ordered pair
+obtained. We output v. Increment pi. Insert Bi[pi] into H. If
+we have output fewer than dlog2 ne elements so far, we repeat the
+third step. This step requires dlog2 ne extract mins and insertions.
+Therefore, the total time spent on the third step is O(logn·logn) =
+O(log2
+n) time.
+In summary, the running time of the first step dominates.
+12

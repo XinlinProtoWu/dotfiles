@@ -1,0 +1,13 @@
+.vagrant
+.vscode/
+
+*.o
+*.pcap
+*.zip
+
+foggytcp/*
+!foggytcp/inc/
+!foggytcp/setup/
+!foggytcp/src/
+!foggytcp/utils/
+!foggytcp/Makefile

@@ -334,11 +334,17 @@ is_secret_path() {
 }
 
 is_binary_or_big() {
-  local f=$1 size
-  [[ -L $f ]] && return 0
-  size=$(stat -c %s "$f" 2>/dev/null || echo 0)
+  # $1 is repo-relative; vault notes may be binary (pdf/png) and larger.
+  local f=$1 path=$REPO/$1 size limit
+  [[ -L $path ]] && return 0
+  size=$(stat -c %s "$path" 2>/dev/null || echo 0)
+  if [[ $f == vaults/* ]]; then
+    limit=$((${VAULT_MAX_FILE_MB:-25} * 1024 * 1024))
+    (( size > limit )) && return 0
+    return 1
+  fi
   (( size > MAX_FILE_MB * 1024 * 1024 )) && return 0
-  if (( size > 65536 )) && ! grep -Iq . "$f" 2>/dev/null; then
+  if (( size > 65536 )) && ! grep -Iq . "$path" 2>/dev/null; then
     return 0
   fi
   return 1
@@ -348,7 +354,7 @@ prune_index() {
   local -a toremove=()
   local f
   while IFS= read -r -d '' f; do
-    if is_secret_path "$f" || is_binary_or_big "$REPO/$f" || git -C "$REPO" check-ignore -q -- "$f"; then
+    if is_secret_path "$f" || is_binary_or_big "$f" || git -C "$REPO" check-ignore -q -- "$f"; then
       toremove+=("$f")
     fi
   done < <(git -C "$REPO" ls-files -z)
@@ -731,12 +737,25 @@ cmd_push() {
   done
   mirror_tree "$HOME/.agents" "$REPO/agents" "~/.agents"
 
-  info "snapshotting obsidian vault configs"
-  local rel
+  if (( VAULT_SYNC_NOTES )); then
+    info "snapshotting obsidian vaults (notes + configs)"
+  else
+    info "snapshotting obsidian vault configs"
+  fi
+  local rel big
   while IFS= read -r rel; do
     [[ -d $HOME/$rel/.obsidian ]] || continue
-    mirror_tree "$HOME/$rel/.obsidian" "$REPO/vaults/$rel/.obsidian" \
-      "vault:$rel" "${vault_ex[@]}"
+    if (( VAULT_SYNC_NOTES )); then
+      while IFS= read -r -d '' big; do
+        warn "vault:$rel skipping >${VAULT_MAX_FILE_MB}MB ${big#"$HOME/$rel/"}"
+      done < <(find "$HOME/$rel" -type f -size +"${VAULT_MAX_FILE_MB}"M \
+                 -not -path '*/.git/*' -not -path '*/node_modules/*' -print0 2>/dev/null)
+      mirror_tree "$HOME/$rel" "$REPO/vaults/$rel" "vault:$rel" \
+        "${vault_ex[@]}" --max-size="${VAULT_MAX_FILE_MB}m"
+    else
+      mirror_tree "$HOME/$rel/.obsidian" "$REPO/vaults/$rel/.obsidian" \
+        "vault:$rel" "${vault_ex[@]}"
+    fi
   done < <(vault_relpaths)
 
   info "snapshotting machine-specific overrides for '$HOST'"
@@ -851,9 +870,13 @@ cmd_pull() {
   local rel
   while IFS= read -r rel; do
     [[ -n $rel ]] || continue
-    [[ -d $REPO/vaults/$rel/.obsidian ]] || continue
+    [[ -d $REPO/vaults/$rel ]] || continue
     mkdir -p "$HOME/$rel" 2>/dev/null || true
-    deploy_tree "$REPO/vaults/$rel/.obsidian" "$HOME/$rel/.obsidian" "vault:$rel"
+    if (( VAULT_SYNC_NOTES )); then
+      deploy_tree "$REPO/vaults/$rel" "$HOME/$rel" "vault:$rel"
+    else
+      deploy_tree "$REPO/vaults/$rel/.obsidian" "$HOME/$rel/.obsidian" "vault:$rel"
+    fi
   done < <({ vault_relpaths; cat "$MANIFEST_DIR/vaults.txt" 2>/dev/null; } | sort -u)
 
   if [[ -d $REPO/profiles/$HOST/overlay ]]; then
