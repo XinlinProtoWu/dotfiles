@@ -1,2 +1,1 @@
-git-filter-repo==2.47.0
 manga-ocr==0.1.15
