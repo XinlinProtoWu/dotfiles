@@ -617,7 +617,11 @@ secrets_bundle() {
     (cd "$tmp" && age -p -o "$out" secrets.tar.gz) || die "age encryption failed"
   else
     out="$REPO/secrets/secrets.tar.gz.gpg"
-    gpg --batch --yes --symmetric --cipher-algo AES256 -o "$out" "$tmp/secrets.tar.gz" \
+    local -a gpg_args=(--batch --yes)
+    if [[ -n ${DOTS_SECRETS_PASSPHRASE:-} ]]; then
+      gpg_args+=(--pinentry-mode loopback --passphrase "$DOTS_SECRETS_PASSPHRASE")
+    fi
+    gpg "${gpg_args[@]}" --symmetric --cipher-algo AES256 -o "$out" "$tmp/secrets.tar.gz" \
       || die "gpg encryption failed"
   fi
   chmod 600 "$out"
@@ -647,8 +651,13 @@ secrets_restore() {
   tmp=$(mktemp -d)
   case $enc in
     *.age) age -d -o "$tmp/secrets.tar.gz" "$enc" || die "age decryption failed" ;;
-    *.gpg) gpg --batch --yes --decrypt -o "$tmp/secrets.tar.gz" "$enc" \
-             || die "gpg decryption failed" ;;
+    *.gpg)
+      local -a gpg_args=(--batch --yes)
+      if [[ -n ${DOTS_SECRETS_PASSPHRASE:-} ]]; then
+        gpg_args+=(--pinentry-mode loopback --passphrase "$DOTS_SECRETS_PASSPHRASE")
+      fi
+      gpg "${gpg_args[@]}" --decrypt -o "$tmp/secrets.tar.gz" "$enc" \
+        || die "gpg decryption failed" ;;
   esac
   tar -xzf "$tmp/secrets.tar.gz" -C "$tmp" || die "tar extraction failed"
 
@@ -737,6 +746,15 @@ cmd_push() {
       warn "cannot read $target (skipped)"
     fi
   done
+
+  # Excluded paths are protected from rsync --delete in the destination, so
+  # remove anything left behind that should never live in the repo mirror.
+  if (( ! DRY_RUN )); then
+    git -C "$REPO" clean -fdX >/dev/null 2>&1 || true
+    find "$REPO/.local/bin" -maxdepth 1 -type l -delete 2>/dev/null || true
+    find "$REPO/.config" -type l -lname '/*' -delete 2>/dev/null || true
+    find "$REPO/.config" -mindepth 2 -type d -empty -delete 2>/dev/null || true
+  fi
 
   gen_manifests
 
