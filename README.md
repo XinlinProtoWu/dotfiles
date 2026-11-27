@@ -125,6 +125,26 @@ survive a pull; `push` mirrors deletions from the machine you push from.
 * `pi/agent/auth.json`, pulse cookies and Moonlight certs never enter git; use
   `dots secrets push` (age, or gpg as fallback) to move them encrypted.
 
+## Rewritten history (2026-11)
+
+History was rewritten to remove a 33 MB binary (`.local/bin/omp`), the Obsidian
+Electron cache (24 MB `asar` + cookies) and credential files (pulse cookie,
+Moonlight client key). A pre-rewrite mirror is kept at
+`~/.dotfiles-history-backup-*.git`; delete it once you are happy.
+
+**Other machines that already cloned this repo must re-sync their history:**
+
+```bash
+cd ~/.dotfiles
+git fetch origin
+git reset --hard origin/main
+# or: rm -rf ~/.dotfiles && ~/.dotfiles/bootstrap.sh
+```
+
+GitHub may keep unreachable objects reachable by old commit SHA for a while —
+if the repo is public, rotate anything that was exposed and/or ask GitHub
+support to run their garbage collection.
+
 ## Fresh machine
 
 ```bash

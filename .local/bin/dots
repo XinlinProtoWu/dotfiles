@@ -1038,13 +1038,19 @@ cmd_doctor() {
   fi
 
   echo "== large files"
-  local big
-  big=$(find "$REPO" -path "$REPO/.git" -prune -o -type f -size +"${MAX_FILE_MB}"M -print 2>/dev/null)
-  if [[ -n $big ]]; then
-    echo "$big" | sed 's/^/  /'
+  local big=0 f
+  while IFS= read -r f; do
+    [[ -n $f ]] || continue
+    is_binary_or_big "$f" || continue
+    [[ -e $REPO/$f ]] || continue
+    echo "  $f"
+    big=1
+  done < <(git -C "$REPO" ls-files 2>/dev/null)
+  if (( big )); then
+    echo "  (above ${MAX_FILE_MB}MB, or above ${VAULT_MAX_FILE_MB}MB inside vaults)"
     issues=$((issues + 1))
   else
-    echo "  ok  nothing above ${MAX_FILE_MB}MB"
+    echo "  ok  nothing above ${MAX_FILE_MB}MB (${VAULT_MAX_FILE_MB}MB in vaults)"
   fi
 
   echo "== symlinks in .local/bin"
