@@ -850,7 +850,13 @@ cmd_push() {
     copy_into_repo "$HOME/.pi/agent/$f" "$REPO/pi/$f"
   done
   for f in "${PI_DIRS[@]}"; do
-    mirror_tree "$HOME/.pi/agent/$f" "$REPO/pi/$f" "pi/$f"
+    # All optional: skills normally live in ~/.agents/skills, and pi creates
+    # extensions/prompts/themes only when you actually have local ones.
+    if [[ -d $HOME/.pi/agent/$f ]]; then
+      mirror_tree "$HOME/.pi/agent/$f" "$REPO/pi/$f" "pi/$f"
+    elif (( VERBOSE )); then
+      info "pi/$f: not present (optional)"
+    fi
   done
   mirror_tree "$HOME/.agents" "$REPO/agents" "~/.agents"
 
