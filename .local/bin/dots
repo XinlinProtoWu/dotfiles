@@ -442,6 +442,23 @@ pacman_install_file() {
   mapfile -t pkgs < <(grep -Ev '^[[:space:]]*(#|$)' "$f")
   ((${#pkgs[@]})) || return 0
 
+  # Only try packages the configured repos can actually provide (devkitPro
+  # packages need /etc/pacman.conf restored first, i.e. `pull --system`).
+  local avail
+  avail=$(pacman -Slq 2>/dev/null | sort -u || true)
+  if [[ -n $avail ]]; then
+    local -a kept=() pkg
+    for pkg in "${pkgs[@]}"; do
+      if ! grep -qxF "$pkg" <<<"$avail"; then
+        warn "$pkg: not in configured repos (skipped)"
+        continue
+      fi
+      kept+=("$pkg")
+    done
+    pkgs=("${kept[@]}")
+  fi
+  ((${#pkgs[@]})) || return 0
+
   info "installing ${#pkgs[@]} repo packages"
   local i pkg
   local -a failed=()
@@ -737,7 +754,10 @@ cmd_push() {
   info "snapshotting /etc"
   local target
   for target in "${ETC_FILES[@]}"; do
-    [[ -e $target ]] || { warn "missing $target"; continue; }
+    if [[ ! -e $target ]]; then
+      (( VERBOSE )) && warn "missing $target (optional)"
+      continue
+    fi
     if [[ -d $target ]]; then
       mirror_tree "$target" "$REPO$target" "$target"
     elif [[ -r $target ]]; then
@@ -830,10 +850,11 @@ cmd_pull() {
 
   local rel
   while IFS= read -r rel; do
+    [[ -n $rel ]] || continue
     [[ -d $REPO/vaults/$rel/.obsidian ]] || continue
     mkdir -p "$HOME/$rel" 2>/dev/null || true
     deploy_tree "$REPO/vaults/$rel/.obsidian" "$HOME/$rel/.obsidian" "vault:$rel"
-  done < <(vault_relpaths; cat "$MANIFEST_DIR/vaults.txt" 2>/dev/null)
+  done < <({ vault_relpaths; cat "$MANIFEST_DIR/vaults.txt" 2>/dev/null; } | sort -u)
 
   if [[ -d $REPO/profiles/$HOST/overlay ]]; then
     info "applying '$HOST' machine overrides"
