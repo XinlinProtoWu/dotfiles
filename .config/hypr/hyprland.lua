@@ -298,6 +298,10 @@ end
 bindWindow(mainMod .. " + 0", hl.dsp.focus({ workspace = "10" }))
 bindWindow(mainMod .. " + SHIFT + 0", hl.dsp.window.move({ workspace = "10" }))
 
+-- Cycle through existing workspaces (wraps around, like Super+Tab in a WM)
+bindWindow(mainMod .. " + TAB", hl.dsp.focus({ workspace = "e+1" }))
+bindWindow(mainMod .. " + SHIFT + TAB", hl.dsp.focus({ workspace = "e-1" }))
+
 -- Mouse movement
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
