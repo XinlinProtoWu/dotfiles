@@ -17,6 +17,10 @@ dots bootstrap git@github.com:XinlinProtoWu/dotfiles.git   # brand-new machine
 `syncDots.sh` and `restore.sh` still work; they are thin wrappers around
 `dots push` / `dots pull`.
 
+> The repo is the source of truth. `dots pull` deploys `~/.dotfiles/.local/bin/dots`
+> over `~/.local/bin/dots`, so edit the script in the repo (or `dots push` first)
+> if you are changing it.
+
 Everything is configured in **`dots.conf`** — file lists, exclusions, vault
 roots, external installers. Edit that, not the scripts.
 

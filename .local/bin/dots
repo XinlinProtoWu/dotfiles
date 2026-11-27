@@ -747,7 +747,7 @@ cmd_push() {
   # Legacy: heavy paths that older versions of this script tracked.
   local legacy
   for legacy in .config/obsidian .config/discord .config/VirtualBox .config/QQ \
-                .config/vesktop .local/bin/omp pkglist; do
+                .config/vesktop .local/bin/omp pkglist home/.viminfo; do
     [[ -e $REPO/$legacy ]] && run rm -rf "$REPO/$legacy"
   done
 
