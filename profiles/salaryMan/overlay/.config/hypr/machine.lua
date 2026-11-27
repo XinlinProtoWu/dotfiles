@@ -1,0 +1,8 @@
+-- Per-machine Hyprland overrides, loaded last by hyprland.lua.
+-- Keep only things that are true for THIS machine (monitor names,
+-- wallpapers, input devices, scaling...). `dots push` files this
+-- under profiles/<hostname>/ so other machines are unaffected.
+--
+-- Examples:
+--   hl.monitor({ output = "eDP-1", mode = "2560x1440@165", scale = 1.33 })
+--   hl.exec_cmd("swww img ~/wallpaper/this-laptop.png")

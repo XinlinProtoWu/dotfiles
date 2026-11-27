@@ -1,0 +1,6 @@
+learn
+learn/comp3511/os
+learn/comp3711/daa
+learn/comp4611/compArchi
+learn/elec2600/probability
+learn/elec3120/network1

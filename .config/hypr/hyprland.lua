@@ -341,8 +341,7 @@ bindExec(mainMod .. " + SHIFT + X", "pkill manga_ocr")
 bindExec(mainMod .. " + mouse_down", "woomer")
 
 -- Audiobar
-bindExec(mainMod .. " + K", "glava")
-bindExec(mainMod .. " + K", "conky")
+bindExec(mainMod .. " + K", "glava & conky")
 bindExec(mainMod .. " + SHIFT + K", "pkill glava; pkill conky; pkill waybar; waybar")
 
 -- Music
@@ -410,8 +409,10 @@ hl.window_rule({
         class = "^(GLava)$",
     },
     float = true,
-    move = { "monitor_w*0.5-window_w*0.5", "monitor_h*0.5-window_h*0.5" },
+    -- Monitor-sized window pinned to 0,0 so glava's radial shader
+    -- (drawn at the centre of its viewport) lands mid-screen.
     size = { "monitor_w", "monitor_h" },
+    move = { "0", "0" },
     no_blur = true,
     no_focus = true,
     border_size = 0,
@@ -439,3 +440,10 @@ hl.window_rule({
     },
     workspace = "10 silent",
 })
+
+-- ============================================================
+-- MACHINE-SPECIFIC OVERRIDES (managed per host by `dots`)
+-- This file is not synced globally: `dots push` stores it under
+-- profiles/<hostname>/overlay/.config/hypr/machine.lua instead.
+-- ============================================================
+pcall(dofile, os.getenv("HOME") .. "/.config/hypr/machine.lua")

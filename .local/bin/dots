@@ -1,0 +1,1069 @@
+#!/usr/bin/env bash
+# =============================================================================
+# dots — keep a fleet of machines identical: configs, workflows and packages
+#
+#   dots push        snapshot this machine into ~/.dotfiles and push to git
+#   dots pull        install packages + deploy configs onto this machine
+#   dots status      what is tracked, dirty, missing, out of date
+#   dots diff        package differences between manifest and this machine
+#   dots doctor      sanity checks (secrets, binaries, symlinks, hooks)
+#   dots secrets     push/pull an age/gpg-encrypted bundle of API keys
+#   dots bootstrap   clone the repo on a fresh machine, then pull
+#
+# All decisions live in ~/.dotfiles/dots.conf — edit that, not this file.
+# =============================================================================
+set -Eeuo pipefail
+
+SELF=$(readlink -f "${BASH_SOURCE[0]}")
+REPO=${DOTS_REPO:-$HOME/.dotfiles}
+
+# shellcheck source=/dev/null
+if [[ -r $REPO/dots.conf ]]; then
+  # shellcheck disable=SC1091
+  . "$REPO/dots.conf"
+else
+  printf 'dots: warning: %s/dots.conf not found (using built-in defaults)\n' "$REPO" >&2
+  HOME_FILES=(.bashrc .bash_profile .profile .gitconfig)
+  CONFIG_EXCLUDES=('*.log' '.git/')
+  HOST_OVERLAY_FILES=()
+  PI_FILES=(settings.json keybindings.json mcp.json models.json)
+  PI_DIRS=(extensions skills prompts themes)
+  VAULT_ROOTS=("$HOME/learn")
+  VAULT_EXCLUDES=(workspace.json node_modules/)
+  ETC_FILES=()
+  EXTERNALS=()
+  SECRET_FILES=()
+fi
+
+MAX_FILE_MB=${MAX_FILE_MB:-2}
+RUN_ID=$(date +%Y%m%d-%H%M%S)
+STATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/dots
+LOG_FILE=$STATE_DIR/dots.log
+BACKUP_ROOT=$STATE_DIR/backups
+MANIFEST_DIR=$REPO/manifests
+HOST=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null || echo unknown)
+
+DRY_RUN=0 ASSUME_YES=0 FORCE=0 VERBOSE=0
+DO_PUSH=1 DO_PACKAGES=1 DO_SYSTEM=0 WITH_SECRETS=0
+COMMIT_MSG=""
+
+# -----------------------------------------------------------------------------
+# output
+# -----------------------------------------------------------------------------
+if [[ -t 1 ]]; then
+  C_R=$'\e[31m' C_G=$'\e[32m' C_Y=$'\e[33m' C_B=$'\e[34m' C_D=$'\e[2m' C_0=$'\e[0m'
+else
+  C_R="" C_G="" C_Y="" C_B="" C_D="" C_0=""
+fi
+
+_log() {
+  [[ -d $STATE_DIR ]] || mkdir -p "$STATE_DIR" 2>/dev/null || return 0
+  printf '%s %s\n' "$(date '+%F %T')" "$*" >>"$LOG_FILE" 2>/dev/null || true
+}
+info() { printf '%s==>%s %s\n' "$C_B" "$C_0" "$*"; _log "INFO $*"; }
+ok()   { printf '%s  ok%s %s\n' "$C_G" "$C_0" "$*"; _log "OK   $*"; }
+warn() { printf '%s warn%s %s\n' "$C_Y" "$C_0" "$*" >&2; _log "WARN $*"; }
+die()  { printf '%serror%s %s\n' "$C_R" "$C_0" "$*" >&2; _log "ERR  $*"; exit 1; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+need() { have "$1" || die "required command not found: $1"; }
+
+# run: honour --dry-run for mutating commands
+run() {
+  if (( DRY_RUN )); then
+    printf '%s[dry-run]%s %s\n' "$C_D" "$C_0" "$*"
+  else
+    _log "RUN  $*"
+    "$@"
+  fi
+}
+
+confirm() {
+  (( ASSUME_YES )) && return 0
+  [[ -t 0 ]] || return 1
+  local a
+  read -r -p "$1 [y/N] " a
+  [[ ${a:-n} =~ ^[Yy]$ ]]
+}
+
+usage() {
+  cat <<'EOF'
+Usage: dots <command> [options]
+
+Commands
+  push                 Snapshot configs/workflows + package manifests, commit, push
+  pull                 Pull repo, install packages, deploy configs and workflows
+  status               Overview of the repo, workflows and pending drift
+  diff                 Package/manifest drift for this machine
+  doctor               Sanity-check the repo (secrets, binaries, symlinks)
+  secrets push|pull    Encrypted (age/gpg) bundle for auth files / cookies
+  bootstrap [url]      Clone repo on a new machine, then run pull
+  help
+
+Options
+  -n, --dry-run        Show what would happen, change nothing
+  -y, --yes            Assume yes for prompts
+  -f, --force          Override safety guards (large deletions, secret hits)
+  -v, --verbose        Verbose output
+      --no-push        Push: commit locally only
+      --no-packages    Pull: skip package installation
+      --system         Pull: also deploy /etc and rebuild initramfs/grub
+      --with-secrets   Pull: also decrypt and restore the secrets bundle
+  -m, --message MSG    Push: custom commit message
+
+Examples
+  dots push                       # sync this machine up to GitHub
+  dots pull                       # make this machine look like the repo
+  dots pull --system --with-secrets -y
+  dots bootstrap git@github.com:XinlinProtoWu/dotfiles.git
+EOF
+}
+
+# -----------------------------------------------------------------------------
+# shared helpers
+# -----------------------------------------------------------------------------
+init_state() {
+  mkdir -p "$STATE_DIR" "$BACKUP_ROOT" "$MANIFEST_DIR"
+  exec 9>"$STATE_DIR/lock"
+  flock -n 9 || die "another 'dots' run is in progress"
+  _log "=== dots $* on $HOST ==="
+}
+
+ensure_repo() {
+  if [[ ! -d $REPO/.git ]]; then
+    info "initialising git repository in $REPO"
+    mkdir -p "$REPO"
+    git -C "$REPO" init -q
+    git -C "$REPO" branch -M main
+    [[ -n ${DOTS_REMOTE:-} ]] && git -C "$REPO" remote add origin "$DOTS_REMOTE"
+  fi
+  if ! git -C "$REPO" remote get-url origin >/dev/null 2>&1 && [[ -n ${DOTS_REMOTE:-} ]]; then
+    git -C "$REPO" remote add origin "$DOTS_REMOTE"
+  fi
+}
+
+# mirror_tree <src> <dst> <label> [rsync args...]
+mirror_tree() {
+  local src=$1 dst=$2 label=$3
+  shift 3
+  local -a extra=("$@")
+
+  if [[ ! -d $src ]]; then
+    warn "skip $label ($src missing)"
+    return 0
+  fi
+  mkdir -p "$dst"
+
+  local -a base=(-a --delete --safe-links "${extra[@]}")
+
+  if (( ! FORCE )) && [[ -d $dst ]]; then
+    local del total
+    del=$(rsync "${base[@]}" --dry-run --itemize-changes "$src/" "$dst/" 2>/dev/null \
+      | grep -c '^\*deleting' || true)
+    total=$(find "$dst" -type f 2>/dev/null | wc -l)
+    del=${del:-0}
+    if (( del > 25 )) || { (( total > 0 )) && (( del * 100 / total > 30 )); }; then
+      die "refusing to mirror $label: would delete $del of $total files (--force to override)"
+    fi
+  fi
+
+  if (( DRY_RUN )); then
+    printf '%s[dry-run]%s mirror %s: %s -> %s\n' "$C_D" "$C_0" "$label" "$src" "$dst"
+    return 0
+  fi
+  rsync "${base[@]}" "$src/" "$dst/"
+  ok "$label"
+}
+
+# deploy_tree <src> <dst> <label> — never deletes, backs up overwritten files
+deploy_tree() {
+  local src=$1 dst=$2 label=$3
+  [[ -d $src ]] || return 0
+  local bk="$BACKUP_ROOT/$RUN_ID/$label"
+  if (( DRY_RUN )); then
+    printf '%s[dry-run]%s deploy %s -> %s\n' "$C_D" "$C_0" "$label" "$dst"
+    return 0
+  fi
+  mkdir -p "$dst"
+  rsync -a --safe-links --backup --backup-dir="$bk" "$src/" "$dst/"
+  ok "deployed $label"
+}
+
+# deploy_file <src> <dst> — only when it differs, keeps a backup
+deploy_file() {
+  local src=$1 dst=$2
+  [[ -f $src ]] || return 0
+  if [[ -f $dst ]] && cmp -s "$src" "$dst"; then
+    return 0
+  fi
+  if (( DRY_RUN )); then
+    printf '%s[dry-run]%s deploy %s\n' "$C_D" "$C_0" "${dst#"$HOME"/}"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dst")"
+  if [[ -f $dst ]]; then
+    local bk="$BACKUP_ROOT/$RUN_ID/files/${dst#"$HOME"/}"
+    mkdir -p "$(dirname "$bk")"
+    cp -a "$dst" "$bk"
+  fi
+  cp -a "$src" "$dst"
+  ok "deployed ${dst#"$HOME"/}"
+}
+
+# copy_into_repo <src> <dst>
+copy_into_repo() {
+  local src=$1 dst=$2
+  [[ -e $src ]] || return 0
+  if (( DRY_RUN )); then
+    printf '%s[dry-run]%s snapshot %s\n' "$C_D" "$C_0" "${src#"$HOME"/}"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dst")"
+  rm -rf "$dst"
+  cp -a "$src" "$dst"
+}
+
+vault_relpaths() {
+  local root rel
+  for root in "${VAULT_ROOTS[@]}"; do
+    [[ -d $root ]] || continue
+    while IFS= read -r -d '' d; do
+      rel=${d#"$HOME"/}
+      rel=${rel%/.obsidian}
+      printf '%s\n' "$rel"
+    done < <(find "$root" -type d -name .obsidian -print0 2>/dev/null)
+  done | sort -u
+}
+
+run_hook() {
+  local name=$1 hook
+  for hook in "$REPO/hooks/$name.sh" "$REPO/profiles/$HOST/$name.sh"; do
+    [[ -x $hook ]] || continue
+    info "running hook ${hook#"$REPO"/}"
+    if (( DRY_RUN )); then
+      printf '%s[dry-run]%s %s\n' "$C_D" "$C_0" "$hook"
+    else
+      "$hook" || warn "hook ${hook##*/} failed (continuing)"
+    fi
+  done
+}
+
+# -----------------------------------------------------------------------------
+# manifests
+# -----------------------------------------------------------------------------
+gen_manifests() {
+  info "recording dependency manifests"
+  mkdir -p "$MANIFEST_DIR"
+  if (( DRY_RUN )); then
+    printf '%s[dry-run]%s write %s/*.txt\n' "$C_D" "$C_0" "${MANIFEST_DIR#"$REPO"/}"
+    return 0
+  fi
+
+  have pacman && pacman -Qenq 2>/dev/null | sort >"$MANIFEST_DIR/pacman-repo.txt" || :
+  have pacman && pacman -Qemq 2>/dev/null | sort >"$MANIFEST_DIR/pacman-aur.txt" || :
+
+  if have pipx; then
+    pipx list --short 2>/dev/null | awk 'NF>=2 {print $1"=="$2}' \
+      | sort >"$MANIFEST_DIR/pipx.txt" || :
+  fi
+  if have npm; then
+    npm ls -g --depth=0 --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    deps = json.load(sys.stdin).get("dependencies") or {}
+except Exception:
+    deps = {}
+builtin = {"npm", "nopt", "semver", "node-gyp"}
+for name, meta in sorted(deps.items()):
+    if name in builtin:
+        continue
+    print(f"{name}@{meta.get(\"version\", \"latest\")}")
+' >"$MANIFEST_DIR/npm-global.txt" 2>/dev/null || :
+  fi
+  if have cargo; then
+    cargo install --list 2>/dev/null \
+      | sed -n 's/^\([A-Za-z0-9_.@/-]*\) v\([^:]*\):$/\1 \2/p' \
+      | sort >"$MANIFEST_DIR/cargo.txt" || :
+  fi
+  if have go; then
+    local gb bin
+    gb=$(go env GOPATH 2>/dev/null)/bin
+    if [[ -d $gb ]]; then
+      for bin in "$gb"/*; do
+        [[ -f $bin && -x $bin ]] || continue
+        go version -m "$bin" 2>/dev/null | awk '$1=="mod"{print $2"@"$3; exit}'
+      done | sort -u >"$MANIFEST_DIR/go.txt" || :
+    fi
+  fi
+  if have systemctl; then
+    systemctl --user list-unit-files --state=enabled --no-legend --no-pager 2>/dev/null \
+      | awk '{print $1}' | grep -Ev '\.(socket|target)$' \
+      | sort >"$MANIFEST_DIR/systemd-user.txt" || :
+  fi
+  if have flatpak; then
+    flatpak list --app --columns=application 2>/dev/null \
+      | sort >"$MANIFEST_DIR/flatpak.txt" || :
+  fi
+  if have pi; then
+    pi list 2>/dev/null \
+      | awk '/^[[:space:]]+(npm|git|https?):/ {sub(/^[[:space:]]+/, ""); print}' \
+      | sort -u >"$MANIFEST_DIR/pi-packages.txt" || :
+  fi
+  vault_relpaths >"$MANIFEST_DIR/vaults.txt"
+  printf '%s\n' "${EXTERNALS[@]}" >"$MANIFEST_DIR/external.txt"
+  ok "manifests updated"
+}
+
+# -----------------------------------------------------------------------------
+# git hygiene
+# -----------------------------------------------------------------------------
+is_secret_path() {
+  local f=$1
+  case $f in
+    secrets/*.age|secrets/*.gpg) return 1 ;;
+    secrets/*) return 0 ;;
+  esac
+  case $f in
+    *auth.json|*cookie|*Moonlight.conf|*pulse/cookie) return 0 ;;
+    *.key|*.pem|id_rsa*|id_ed25519*|id_ecdsa*) return 0 ;;
+    */google-chrome/*|*/chromium/*|*/discord/*|*/vesktop/*|*/QQ/*|\
+    */.config/obsidian/*|*/VirtualBox/*|*/.local/bin/omp) return 0 ;;
+    *.tar.gz|*.tar.*|*.sqlite*|*.pickle|*.bdic|*Cookies*) return 0 ;;
+  esac
+  return 1
+}
+
+is_binary_or_big() {
+  local f=$1 size
+  [[ -L $f ]] && return 0
+  size=$(stat -c %s "$f" 2>/dev/null || echo 0)
+  (( size > MAX_FILE_MB * 1024 * 1024 )) && return 0
+  if (( size > 65536 )) && ! grep -Iq . "$f" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+prune_index() {
+  local -a toremove=()
+  local f
+  while IFS= read -r -d '' f; do
+    if is_secret_path "$f" || is_binary_or_big "$REPO/$f" || git -C "$REPO" check-ignore -q -- "$f"; then
+      toremove+=("$f")
+    fi
+  done < <(git -C "$REPO" ls-files -z)
+
+  ((${#toremove[@]})) || return 0
+  printf '%s\n' "${toremove[@]}" | while IFS= read -r f; do
+    warn "untracking $f"
+  done
+  printf '%s\0' "${toremove[@]}" | xargs -0 git -C "$REPO" rm --cached --quiet -- || true
+}
+
+scan_secrets() {
+  # Patterns are split so this script does not match itself when scanned.
+  local -a pats=(
+    "s""k-[A-Za-z0-9_-]{20,}"
+    "gh[pousr]""_[A-Za-z0-9]{30,}"
+    "github_pat""_[A-Za-z0-9_]{20,}"
+    "AKIA""[0-9A-Z]{16}"
+    "xox[baprs]""-[A-Za-z0-9-]{10,}"
+    "glpat""-[A-Za-z0-9_-]{20,}"
+    "-----BEGIN ""[A-Z ]*PRIVATE KEY-----"
+  )
+  local -a files=() hits=()
+  mapfile -d '' -t files < <(
+    git -C "$REPO" ls-files -z --cached --others --exclude-standard -- ':!secrets/*'
+  )
+  ((${#files[@]})) || return 0
+
+  local p
+  for p in "${pats[@]}"; do
+    while IFS= read -r f; do
+      hits+=("$f")
+    done < <(cd "$REPO" && printf '%s\0' "${files[@]}" \
+      | xargs -0 grep -IlE -- "$p" 2>/dev/null || true)
+  done
+  ((${#hits[@]})) || return 0
+  mapfile -t hits < <(printf '%s\n' "${hits[@]}" | sort -u)
+  ((${#hits[@]})) || return 0
+
+  warn "possible secrets in tracked files:"
+  printf '  %s\n' "${hits[@]}" >&2
+  if (( ! FORCE )); then
+    die "refusing to commit secrets (move them to 'dots secrets', or --force)"
+  fi
+  warn "continuing because --force was given"
+}
+
+commit_and_push() {
+  local msg=$1
+  if (( DRY_RUN )); then
+    info "[dry-run] would commit + push: $msg"
+    return 0
+  fi
+  if [[ -z $(git -C "$REPO" status --porcelain) ]]; then
+    ok "nothing to commit"
+  else
+    git -C "$REPO" add -A
+    prune_index
+    scan_secrets
+    if [[ -z $(git -C "$REPO" status --porcelain --untracked-files=no) ]]; then
+      ok "no tracked changes after pruning"
+    else
+      git -C "$REPO" commit -q -m "$msg"
+      ok "committed: $msg"
+    fi
+  fi
+
+  (( DO_PUSH )) || { info "push skipped (--no-push)"; return 0; }
+  if ! git -C "$REPO" remote get-url origin >/dev/null 2>&1; then
+    warn "no git remote configured; commit kept locally"
+    return 0
+  fi
+  git -C "$REPO" pull --rebase --autostash --quiet \
+    || warn "git pull --rebase failed — resolve conflicts, then 'git -C $REPO push'"
+  local branch
+  branch=$(git -C "$REPO" branch --show-current)
+  if git -C "$REPO" push -q origin "$branch"; then
+    ok "pushed to origin/$branch"
+  else
+    warn "push failed (offline or auth) — commit is safe locally"
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# package installation
+# -----------------------------------------------------------------------------
+pacman_install_file() {
+  local f=$1
+  [[ -f $f ]] || return 0
+  local -a pkgs
+  mapfile -t pkgs < <(grep -Ev '^[[:space:]]*(#|$)' "$f")
+  ((${#pkgs[@]})) || return 0
+
+  info "installing ${#pkgs[@]} repo packages"
+  local i pkg
+  local -a failed=()
+  for ((i = 0; i < ${#pkgs[@]}; i += 40)); do
+    local -a chunk=("${pkgs[@]:i:40}")
+    if ! run sudo pacman -S --needed --noconfirm "${chunk[@]}"; then
+      for pkg in "${chunk[@]}"; do
+        run sudo pacman -S --needed --noconfirm "$pkg" || failed+=("$pkg")
+      done
+    fi
+  done
+  ((${#failed[@]})) && warn "repo packages not installed: ${failed[*]}"
+  return 0
+}
+
+ensure_yay() {
+  have yay && return 0
+  info "installing yay"
+  run sudo pacman -S --needed --noconfirm base-devel git || return 1
+  run rm -rf /tmp/dots-yay
+  run git clone -q https://aur.archlinux.org/yay.git /tmp/dots-yay || return 1
+  (cd /tmp/dots-yay && run makepkg -si --noconfirm) || return 1
+  run rm -rf /tmp/dots-yay
+}
+
+aur_install_file() {
+  local f=$1
+  [[ -f $f ]] || return 0
+  local -a pkgs
+  mapfile -t pkgs < <(grep -Ev '^[[:space:]]*(#|$)' "$f")
+  ((${#pkgs[@]})) || return 0
+  ensure_yay || { warn "yay unavailable; skipping AUR packages"; return 0; }
+
+  info "installing ${#pkgs[@]} AUR packages"
+  local i
+  for ((i = 0; i < ${#pkgs[@]}; i += 40)); do
+    run yay -S --needed --noconfirm "${pkgs[@]:i:40}" \
+      || warn "some AUR packages failed to install"
+  done
+}
+
+install_pipx() {
+  [[ -f $MANIFEST_DIR/pipx.txt ]] || return 0
+  have pipx || { warn "pipx not installed; skipping pipx packages"; return 0; }
+  local installed spec name
+  installed=$(pipx list --short 2>/dev/null | awk '{print $1}')
+  while IFS= read -r spec; do
+    [[ -n $spec ]] || continue
+    name=${spec%%==*}
+    grep -qx "$name" <<<"$installed" && continue
+    run pipx install "$spec" || warn "pipx install $spec failed"
+  done <"$MANIFEST_DIR/pipx.txt"
+}
+
+install_npm() {
+  [[ -f $MANIFEST_DIR/npm-global.txt ]] || return 0
+  have npm || { warn "npm not installed; skipping global npm packages"; return 0; }
+  local spec
+  while IFS= read -r spec; do
+    [[ -n $spec ]] || continue
+    npm ls -g "$spec" >/dev/null 2>&1 && continue
+    run npm install -g "$spec" || warn "npm install -g $spec failed"
+  done <"$MANIFEST_DIR/npm-global.txt"
+}
+
+install_cargo() {
+  [[ -f $MANIFEST_DIR/cargo.txt ]] || return 0
+  have cargo || { warn "cargo not installed; skipping cargo packages"; return 0; }
+  local name ver
+  while read -r name ver; do
+    [[ -n ${name:-} ]] || continue
+    have "$name" && continue
+    run cargo install "$name" --version "${ver:-*}" || warn "cargo install $name failed"
+  done <"$MANIFEST_DIR/cargo.txt"
+}
+
+install_go() {
+  [[ -f $MANIFEST_DIR/go.txt ]] || return 0
+  have go || return 0
+  local spec
+  while IFS= read -r spec; do
+    [[ -n $spec ]] || continue
+    run go install "$spec" || warn "go install $spec failed"
+  done <"$MANIFEST_DIR/go.txt"
+}
+
+install_flatpak() {
+  [[ -f $MANIFEST_DIR/flatpak.txt ]] || return 0
+  have flatpak || return 0
+  local app
+  while IFS= read -r app; do
+    [[ -n $app ]] || continue
+    flatpak info "$app" >/dev/null 2>&1 && continue
+    run flatpak install -y flathub "$app" || warn "flatpak install $app failed"
+  done <"$MANIFEST_DIR/flatpak.txt"
+}
+
+enable_user_units() {
+  [[ -f $MANIFEST_DIR/systemd-user.txt ]] || return 0
+  have systemctl || return 0
+  local unit
+  while IFS= read -r unit; do
+    [[ -n $unit ]] || continue
+    systemctl --user is-enabled --quiet "$unit" 2>/dev/null && continue
+    run systemctl --user enable "$unit" 2>/dev/null || warn "could not enable $unit"
+  done <"$MANIFEST_DIR/systemd-user.txt"
+}
+
+install_externals() {
+  [[ -f $MANIFEST_DIR/external.txt ]] || return 0
+  local name check install
+  while IFS='|' read -r name check install; do
+    [[ -n ${name:-} ]] || continue
+    if bash -c "$check" >/dev/null 2>&1; then
+      continue
+    fi
+    warn "$name is missing"
+    if (( DRY_RUN )); then
+      info "  [dry-run] would install $name: $install"
+      continue
+    fi
+    if confirm "  install $name now? ($install)"; then
+      if ! bash -c "$install"; then
+        warn "installing $name failed — run manually: $install"
+      fi
+    else
+      info "  skipped $name (install later: $install)"
+    fi
+  done <"$MANIFEST_DIR/external.txt"
+}
+
+install_pi_packages() {
+  [[ -f $MANIFEST_DIR/pi-packages.txt ]] || return 0
+  have pi || { warn "pi not installed; skipping pi packages"; return 0; }
+  local current spec
+  current=$(pi list 2>/dev/null || true)
+  while IFS= read -r spec; do
+    [[ -n $spec ]] || continue
+    grep -qF "$spec" <<<"$current" && continue
+    run pi install "$spec" || warn "pi install $spec failed"
+  done <"$MANIFEST_DIR/pi-packages.txt"
+}
+
+# -----------------------------------------------------------------------------
+# secrets
+# -----------------------------------------------------------------------------
+secrets_bundle() {
+  have age || have gpg || die "need age or gnupg for 'dots secrets'"
+  local tmp list=()
+  tmp=$(mktemp -d)
+  local f
+  for f in "${SECRET_FILES[@]}"; do
+    [[ -f $HOME/$f ]] && list+=("./$f")
+  done
+  if ((${#list[@]} == 0)); then
+    rm -rf "$tmp"
+    warn "none of the SECRET_FILES exist on this machine"
+    return 0
+  fi
+  info "bundling ${#list[@]} secret file(s):"
+  printf '  - %s\n' "${list[@]#./}"
+  if (( DRY_RUN )); then
+    rm -rf "$tmp"
+    return 0
+  fi
+
+  tar -czf "$tmp/secrets.tar.gz" -C "$HOME" "${list[@]}" || die "tar failed"
+  mkdir -p "$REPO/secrets"
+
+  local out
+  if have age; then
+    out="$REPO/secrets/secrets.tar.gz.age"
+    (cd "$tmp" && age -p -o "$out" secrets.tar.gz) || die "age encryption failed"
+  else
+    out="$REPO/secrets/secrets.tar.gz.gpg"
+    gpg --batch --yes --symmetric --cipher-algo AES256 -o "$out" "$tmp/secrets.tar.gz" \
+      || die "gpg encryption failed"
+  fi
+  chmod 600 "$out"
+  rm -rf "$tmp"
+  ok "wrote ${out#"$REPO"/}"
+
+  if (( DRY_RUN )); then return 0; fi
+  git -C "$REPO" add "${out#"$REPO"/}"
+  if [[ -n $(git -C "$REPO" status --porcelain) ]]; then
+    git -C "$REPO" commit -q -m "secrets: update encrypted bundle ($RUN_ID)"
+    ok "committed secrets bundle"
+  fi
+  if (( DO_PUSH )) && git -C "$REPO" remote get-url origin >/dev/null 2>&1; then
+    git -C "$REPO" push -q origin "$(git -C "$REPO" branch --show-current)" \
+      && ok "pushed secrets bundle" || warn "push failed; bundle is committed locally"
+  fi
+}
+
+secrets_restore() {
+  local enc="" c tmp
+  for c in "$REPO"/secrets/secrets.tar.gz.age "$REPO"/secrets/secrets.tar.gz.gpg; do
+    [[ -f $c ]] && enc=$c && break
+  done
+  [[ -n $enc ]] || die "no encrypted secrets bundle in $REPO/secrets"
+  have age || have gpg || die "need age or gnupg to decrypt"
+
+  tmp=$(mktemp -d)
+  case $enc in
+    *.age) age -d -o "$tmp/secrets.tar.gz" "$enc" || die "age decryption failed" ;;
+    *.gpg) gpg --batch --yes --decrypt -o "$tmp/secrets.tar.gz" "$enc" \
+             || die "gpg decryption failed" ;;
+  esac
+  tar -xzf "$tmp/secrets.tar.gz" -C "$tmp" || die "tar extraction failed"
+
+  local path
+  while IFS= read -r path; do
+    [[ -f $tmp/$path ]] || continue
+    deploy_file "$tmp/$path" "$HOME/$path"
+    (( DRY_RUN )) || chmod 600 "$HOME/$path"
+  done < <(cd "$tmp" && find . -type f ! -name secrets.tar.gz -printf '%P\n')
+  rm -rf "$tmp"
+  ok "secrets restored"
+}
+
+# -----------------------------------------------------------------------------
+# push
+# -----------------------------------------------------------------------------
+cmd_push() {
+  init_state push "$@"
+  need git
+  need rsync
+  ensure_repo
+
+  local -a conf_ex=() vault_ex=()
+  local p f
+  for p in "${CONFIG_EXCLUDES[@]}"; do conf_ex+=(--exclude="$p"); done
+  for f in "${HOST_OVERLAY_FILES[@]}"; do
+    [[ $f == .config/* ]] && conf_ex+=(--exclude="${f#.config/}")
+  done
+  for p in "${VAULT_EXCLUDES[@]}"; do vault_ex+=(--exclude="$p"); done
+
+  if (( WITH_SECRETS )); then
+    info "updating encrypted secrets bundle"
+    secrets_bundle
+  fi
+
+  info "snapshotting ~/.config"
+  mirror_tree "$HOME/.config" "$REPO/.config" "~/.config" "${conf_ex[@]}"
+
+  info "snapshotting ~/.local/bin (scripts only)"
+  mirror_tree "$HOME/.local/bin" "$REPO/.local/bin" "~/.local/bin" \
+    --no-links --exclude='omp' --max-size="${MAX_FILE_MB}m"
+
+  info "snapshotting home dotfiles"
+  for f in "${HOME_FILES[@]}"; do
+    copy_into_repo "$HOME/$f" "$REPO/home/$f"
+  done
+
+  info "snapshotting pi agent workflows"
+  for f in "${PI_FILES[@]}"; do
+    copy_into_repo "$HOME/.pi/agent/$f" "$REPO/pi/$f"
+  done
+  for f in "${PI_DIRS[@]}"; do
+    mirror_tree "$HOME/.pi/agent/$f" "$REPO/pi/$f" "pi/$f"
+  done
+  mirror_tree "$HOME/.agents" "$REPO/agents" "~/.agents"
+
+  info "snapshotting obsidian vault configs"
+  local rel
+  while IFS= read -r rel; do
+    [[ -d $HOME/$rel/.obsidian ]] || continue
+    mirror_tree "$HOME/$rel/.obsidian" "$REPO/vaults/$rel/.obsidian" \
+      "vault:$rel" "${vault_ex[@]}"
+  done < <(vault_relpaths)
+
+  info "snapshotting machine-specific overrides for '$HOST'"
+  for f in "${HOST_OVERLAY_FILES[@]}"; do
+    copy_into_repo "$HOME/$f" "$REPO/profiles/$HOST/overlay/$f"
+  done
+
+  # Legacy: heavy paths that older versions of this script tracked.
+  local legacy
+  for legacy in .config/obsidian .config/discord .config/VirtualBox .config/QQ \
+                .config/vesktop .local/bin/omp pkglist; do
+    [[ -e $REPO/$legacy ]] && run rm -rf "$REPO/$legacy"
+  done
+
+  info "snapshotting /etc"
+  local target
+  for target in "${ETC_FILES[@]}"; do
+    [[ -e $target ]] || { warn "missing $target"; continue; }
+    if [[ -d $target ]]; then
+      mirror_tree "$target" "$REPO$target" "$target"
+    elif [[ -r $target ]]; then
+      copy_into_repo "$target" "$REPO$target"
+    else
+      warn "cannot read $target (skipped)"
+    fi
+  done
+
+  gen_manifests
+
+  local msg=${COMMIT_MSG:-"dots: sync $HOST ($(date '+%F %H:%M'))"}
+  commit_and_push "$msg"
+  echo
+  ok "push complete — backups of replaced files (if any): $BACKUP_ROOT/$RUN_ID"
+}
+
+# -----------------------------------------------------------------------------
+# pull
+# -----------------------------------------------------------------------------
+cmd_pull() {
+  init_state pull "$@"
+  need git
+  need rsync
+  ensure_repo
+
+  if git -C "$REPO" remote get-url origin >/dev/null 2>&1 && (( ! DRY_RUN )); then
+    info "updating repository"
+    git -C "$REPO" pull --ff-only --quiet || warn "could not update repo (continuing with local copy)"
+  fi
+
+  run_hook pre-pull
+
+  if (( DO_SYSTEM )); then
+    info "deploying /etc (system configuration)"
+    local target
+    for target in "${ETC_FILES[@]}"; do
+      local rel=${target#/}
+      if [[ -d $REPO/$rel ]]; then
+        (( DRY_RUN )) && { info "[dry-run] /$rel/"; continue; }
+        sudo mkdir -p "/$rel"
+        sudo rsync -a --backup --backup-dir="$BACKUP_ROOT/$RUN_ID/system/$rel" \
+          "$REPO/$rel/" "/$rel/" || warn "failed to deploy /$rel"
+      elif [[ -f $REPO/$rel ]]; then
+        (( DRY_RUN )) && { info "[dry-run] /$rel"; continue; }
+        sudo mkdir -p "$(dirname "/$rel")"
+        sudo cp -a "/$rel" "$BACKUP_ROOT/$RUN_ID/system/$rel" 2>/dev/null || true
+        sudo cp -a "$REPO/$rel" "/$rel" || warn "failed to deploy /$rel"
+      fi
+    done
+    (( DRY_RUN )) || { sudo chown -R "$(id -u):$(id -g)" "$BACKUP_ROOT/$RUN_ID/system" 2>/dev/null || true; }
+  fi
+
+  if (( DO_PACKAGES )); then
+    pacman_install_file "$MANIFEST_DIR/pacman-repo.txt"
+    aur_install_file "$MANIFEST_DIR/pacman-aur.txt"
+    pacman_install_file "$REPO/profiles/$HOST/packages.repo.txt"
+    aur_install_file "$REPO/profiles/$HOST/packages.aur.txt"
+    install_externals
+    install_pipx
+    install_npm
+    install_cargo
+    install_go
+    install_flatpak
+    enable_user_units
+  else
+    info "package installation skipped (--no-packages)"
+  fi
+
+  if (( WITH_SECRETS )); then
+    info "restoring encrypted secrets"
+    secrets_restore
+  fi
+
+  info "deploying configuration"
+  deploy_tree "$REPO/.config" "$HOME/.config" ".config"
+  deploy_tree "$REPO/.local/bin" "$HOME/.local/bin" ".local/bin"
+  deploy_tree "$REPO/home" "$HOME" "home"
+  deploy_tree "$REPO/agents" "$HOME/.agents" ".agents"
+  deploy_tree "$REPO/pi" "$HOME/.pi/agent" ".pi/agent"
+
+  local rel
+  while IFS= read -r rel; do
+    [[ -d $REPO/vaults/$rel/.obsidian ]] || continue
+    mkdir -p "$HOME/$rel" 2>/dev/null || true
+    deploy_tree "$REPO/vaults/$rel/.obsidian" "$HOME/$rel/.obsidian" "vault:$rel"
+  done < <(vault_relpaths; cat "$MANIFEST_DIR/vaults.txt" 2>/dev/null)
+
+  if [[ -d $REPO/profiles/$HOST/overlay ]]; then
+    info "applying '$HOST' machine overrides"
+    deploy_tree "$REPO/profiles/$HOST/overlay/.config" "$HOME/.config" "profile/.config"
+    deploy_tree "$REPO/profiles/$HOST/overlay/.local/bin" "$HOME/.local/bin" "profile/.local/bin"
+    deploy_tree "$REPO/profiles/$HOST/overlay/home" "$HOME" "profile/home"
+  fi
+
+  install_pi_packages
+
+  if (( DRY_RUN )); then
+    info "[dry-run] post-deploy steps skipped"
+    return 0
+  fi
+
+  # scripts must stay executable even if git lost the bit
+  local s
+  if [[ -d $HOME/.local/bin ]]; then
+    while IFS= read -r -d '' s; do
+      [[ $(head -c2 "$s" 2>/dev/null) == '#!' ]] && chmod +x "$s"
+    done < <(find "$HOME/.local/bin" -maxdepth 1 -type f -print0)
+  fi
+
+  if have fc-cache; then fc-cache -f >/dev/null 2>&1 || true; fi
+  if have nvim && [[ -f $HOME/.config/nvim/lazy-lock.json ]]; then
+    info "restoring LazyVim plugins (network required)"
+    nvim --headless "+Lazy! restore" +qa >/dev/null 2>&1 || warn "LazyVim restore failed; run :Lazy restore manually"
+  fi
+  if have systemctl; then systemctl --user daemon-reload >/dev/null 2>&1 || true; fi
+  if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] && have hyprctl; then
+    hyprctl reload >/dev/null 2>&1 && ok "hyprland reloaded" || true
+  fi
+
+  if (( DO_SYSTEM )); then
+    if have mkinitcpio; then
+      info "rebuilding initramfs"
+      sudo mkinitcpio -P || warn "mkinitcpio failed"
+    fi
+    if have grub-mkconfig; then
+      info "regenerating grub"
+      sudo grub-mkconfig -o /boot/grub/grub.cfg || warn "grub-mkconfig failed"
+    fi
+  fi
+
+  run_hook post-pull
+  echo
+  ok "pull complete"
+  info "backups of replaced files: $BACKUP_ROOT/$RUN_ID"
+}
+
+# -----------------------------------------------------------------------------
+# status / diff / doctor
+# -----------------------------------------------------------------------------
+cmd_status() {
+  [[ -d $REPO ]] || die "$REPO does not exist — run '$0 bootstrap'"
+  echo "repository   : $REPO ($(git -C "$REPO" branch --show-current 2>/dev/null || echo 'no branch'))"
+  echo "remote       : $(git -C "$REPO" remote get-url origin 2>/dev/null || echo none)"
+  echo "host profile : $([[ -d $REPO/profiles/$HOST ]] && echo yes || echo no) ($HOST)"
+  echo "last commit  : $(git -C "$REPO" log -1 --format='%h %s' 2>/dev/null || echo none)"
+  local dirty tracked size
+  dirty=$(git -C "$REPO" status --porcelain 2>/dev/null | wc -l)
+  tracked=$(git -C "$REPO" ls-files 2>/dev/null | wc -l)
+  size=$(du -sh --exclude=.git "$REPO" 2>/dev/null | cut -f1 || true)
+  echo "tracked      : $tracked files, ${size:-0}"
+  echo "uncommitted  : $dirty path(s)"
+  echo
+  echo "workflows:"
+  printf '  pi agent dir : %s\n' "$([[ -f ~/.pi/agent/settings.json ]] && echo present || echo missing)"
+  if have pi; then
+    printf '  pi packages  : %s\n' "$(pi list 2>/dev/null | grep -cE '^[[:space:]]+(npm|git|https?):' || true)"
+  else
+    printf '  pi packages  : pi not installed\n'
+  fi
+  printf '  pi skills    : %s\n' "$(find ~/.agents/skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+  printf '  lazyvim lock : %s\n' "$([[ -f ~/.config/nvim/lazy-lock.json ]] && echo present || echo missing)"
+  printf '  vault configs: %s\n' "$(find "${VAULT_ROOTS[@]}" -name .obsidian -type d 2>/dev/null | wc -l)"
+  printf '  secrets      : %s\n' "$(ls "$REPO"/secrets/*.age "$REPO"/secrets/*.gpg 2>/dev/null | wc -l) encrypted bundle(s)"
+  echo
+  echo "packages: $(pacman -Q 2>/dev/null | wc -l) total, $(pacman -Qemq 2>/dev/null | wc -l) AUR"
+  echo "backups    : $BACKUP_ROOT"
+  echo "log        : $LOG_FILE"
+}
+
+diff_line() {
+  local label=$1 file=$2
+  shift 2
+  [[ -f $file ]] || return 0
+  local tmp
+  tmp=$(mktemp)
+  "$@" 2>/dev/null | sort -u >"$tmp" || true
+  local missing extra
+  missing=$(comm -23 <(sort -u "$file") "$tmp" | wc -l)
+  extra=$(comm -13 <(sort -u "$file") "$tmp" | wc -l)
+  printf '%-12s manifest %-4s this machine %-4s (missing %s, extra %s)\n' \
+    "$label" "$(wc -l <"$file")" "$(wc -l <"$tmp")" "$missing" "$extra"
+  if ((${#VERBOSE})) || (( missing || extra )); then
+    comm -23 <(sort -u "$file") "$tmp" | sed 's/^/    - /' | head -20
+    comm -13 <(sort -u "$file") "$tmp" | sed 's/^/    + /' | head -20
+  fi
+  rm -f "$tmp"
+}
+
+cmd_diff() {
+  diff_line pacman-repo "$MANIFEST_DIR/pacman-repo.txt" pacman -Qenq
+  diff_line pacman-aur "$MANIFEST_DIR/pacman-aur.txt" pacman -Qemq
+  diff_line pipx "$MANIFEST_DIR/pipx.txt" bash -c 'pipx list --short 2>/dev/null | awk "NF>=2 {print \$1\"==\"\$2}"'
+  diff_line npm "$MANIFEST_DIR/npm-global.txt" bash -c 'npm ls -g --depth=0 --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin).get(\"dependencies\") or {}; [print(k+\"@\"+v.get(\"version\",\"?\")) for k,v in sorted(d.items()) if k not in {\"npm\",\"nopt\",\"semver\",\"node-gyp\"}]"'
+  diff_line pi "$MANIFEST_DIR/pi-packages.txt" bash -c 'pi list 2>/dev/null | awk "/^[[:space:]]+(npm|git|https?):/ {sub(/^[[:space:]]+/,\"\"); print}"'
+}
+
+cmd_doctor() {
+  local issues=0
+  echo "== tools"
+  local c
+  for c in git rsync pacman; do
+    if have "$c"; then echo "  ok  $c"; else echo "  MISSING $c"; issues=$((issues + 1)); fi
+  done
+  echo "== repo"
+  if [[ -d $REPO/.git ]]; then
+    echo "  ok  git repository"
+  else
+    echo "  MISSING git repository at $REPO"; issues=$((issues + 1))
+  fi
+  if git -C "$REPO" remote get-url origin >/dev/null 2>&1; then
+    echo "  ok  remote $(git -C "$REPO" remote get-url origin)"
+  else
+    echo "  WARN no remote configured"; issues=$((issues + 1))
+  fi
+
+  echo "== dangerous tracked files"
+  local f found=0
+  while IFS= read -r -d '' f; do
+    if is_secret_path "$f"; then
+      echo "  TRACKED SECRET $f"
+      found=1
+    fi
+  done < <(git -C "$REPO" ls-files -z 2>/dev/null)
+  (( found )) && issues=$((issues + 1)) || echo "  ok  no known secret paths tracked"
+
+  echo "== large files"
+  local big
+  big=$(find "$REPO" -path "$REPO/.git" -prune -o -type f -size +"${MAX_FILE_MB}"M -print 2>/dev/null)
+  if [[ -n $big ]]; then
+    echo "$big" | sed 's/^/  /'
+    issues=$((issues + 1))
+  else
+    echo "  ok  nothing above ${MAX_FILE_MB}MB"
+  fi
+
+  echo "== symlinks in .local/bin"
+  local sl
+  sl=$(find "$REPO/.local/bin" -maxdepth 1 -type l 2>/dev/null)
+  if [[ -n $sl ]]; then
+    echo "$sl" | sed 's/^/  /'
+    issues=$((issues + 1))
+  else
+    echo "  ok  none"
+  fi
+
+  echo "== hooks"
+  local h
+  for h in "$REPO"/hooks/*.sh "$REPO/profiles/$HOST"/*.sh; do
+    [[ -e $h ]] || continue
+    [[ -x $h ]] && echo "  ok  ${h#"$REPO"/}" || { echo "  NOT EXECUTABLE ${h#"$REPO"/}"; issues=$((issues + 1)); }
+  done
+
+  echo
+  if (( issues )); then
+    warn "$issues issue(s) found"
+    return 1
+  fi
+  ok "no issues found"
+}
+
+# -----------------------------------------------------------------------------
+# bootstrap
+# -----------------------------------------------------------------------------
+cmd_bootstrap() {
+  local url=${1:-${DOTS_REMOTE:-}}
+  shift || true
+  [[ -n $url ]] || die "no repository URL given"
+  need git
+
+  local -a flags=()
+  (( DRY_RUN )) && flags+=(--dry-run)
+  (( ASSUME_YES )) && flags+=(--yes)
+  (( FORCE )) && flags+=(--force)
+  (( VERBOSE )) && flags+=(--verbose)
+  (( DO_PACKAGES )) || flags+=(--no-packages)
+  (( DO_SYSTEM )) && flags+=(--system)
+  (( WITH_SECRETS )) && flags+=(--with-secrets)
+
+  if [[ ! -d $REPO/.git ]]; then
+    if ! have rsync; then
+      info "installing git + rsync"
+      sudo pacman -S --needed --noconfirm git rsync || die "could not install git/rsync"
+    fi
+    info "cloning $url into $REPO"
+    mkdir -p "$(dirname "$REPO")"
+    git clone "$url" "$REPO" || die "clone failed"
+  fi
+
+  exec "$SELF" pull "${flags[@]}" "$@"
+}
+
+# -----------------------------------------------------------------------------
+# argument parsing
+# -----------------------------------------------------------------------------
+main() {
+  local cmd=${1:-help}
+  shift || true
+
+  local -a rest=()
+  while (($#)); do
+    case $1 in
+      -n|--dry-run)   DRY_RUN=1 ;;
+      -y|--yes)       ASSUME_YES=1 ;;
+      -f|--force)     FORCE=1 ;;
+      -v|--verbose)   VERBOSE=1 ;;
+      --no-push)      DO_PUSH=0 ;;
+      --no-packages)  DO_PACKAGES=0 ;;
+      --system)       DO_SYSTEM=1 ;;
+      --with-secrets) WITH_SECRETS=1 ;;
+      -m|--message)   COMMIT_MSG=${2:-}; shift ;;
+      -h|--help)      usage; exit 0 ;;
+      --)             shift; rest+=("$@"); break ;;
+      *)              rest+=("$1") ;;
+    esac
+    shift
+  done
+
+  case $cmd in
+    push)      cmd_push "${rest[@]}" ;;
+    pull)      cmd_pull "${rest[@]}" ;;
+    status)    cmd_status ;;
+    diff)      cmd_diff ;;
+    doctor)    cmd_doctor ;;
+    secrets)
+      case ${rest[0]:-} in
+        push)      secrets_bundle ;;
+        pull)      init_state secrets; secrets_restore ;;
+        *)         die "usage: dots secrets push|pull" ;;
+      esac
+      ;;
+    bootstrap) cmd_bootstrap "${rest[@]}" ;;
+    help|-h|--help) usage ;;
+    *) die "unknown command '$cmd' (try: dots help)" ;;
+  esac
+}
+
+main "$@"

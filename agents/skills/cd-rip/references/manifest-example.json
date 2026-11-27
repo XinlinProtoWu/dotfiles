@@ -1,0 +1,33 @@
+{
+  "music_root": "/run/media/xinuwu/6883-87F1/music",
+  "album_dir": "VivaldiLocatelli-ChloeChua",
+  "wav_dir": "/tmp/cdrip",
+  "cover": "/tmp/cdrip/art/cover.jpg",
+  "release": {
+    "album": "Vivaldi & Locatelli",
+    "artist": "Chloe Chua; Singapore Symphony Orchestra; Chan Yoong-Han",
+    "albumartist": "Chloe Chua",
+    "date": "2023-03-10",
+    "genre": "Classical",
+    "label": "Pentatone",
+    "catalognumber": "PTC 5187 062",
+    "barcode": "8717306260626",
+    "musicbrainz_albumid": "38d45fcb-60f8-4f98-944d-d5292f48999d"
+  },
+  "tracks": [
+    {
+      "number": 1,
+      "title": "The Four Seasons, Concerto No. 1 in E Major, RV 269 \u201cSpring\u201d - I. Allegro",
+      "composer": "Antonio Vivaldi",
+      "isrc": "NLE422306201",
+      "length": 200.693
+    },
+    {
+      "number": 2,
+      "title": "The Four Seasons, Concerto No. 1 in E Major, RV 269 \u201cSpring\u201d - II. Largo",
+      "composer": "Antonio Vivaldi",
+      "isrc": "NLE422306202",
+      "length": 171.773
+    }
+  ]
+}

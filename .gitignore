@@ -1,0 +1,54 @@
+# --- secrets: only encrypted bundles may be committed -----------------------
+secrets/*
+!secrets/secrets.tar.gz.age
+!secrets/secrets.tar.gz.gpg
+
+# --- credentials / identity files -------------------------------------------
+**/auth.json
+**/cookie
+**/*.pem
+**/*.key
+**/id_rsa*
+**/id_ed25519*
+**/id_ecdsa*
+**/Moonlight.conf
+**/*.cookie
+
+# --- heavy binaries and rebuildable caches (defence in depth) ---------------
+.local/bin/omp
+.local/bin/*.AppImage
+.config/obsidian/
+.config/VirtualBox/
+.config/QQ/
+.config/discord/
+.config/vesktop/
+.config/slack/
+.config/spotify/
+.config/google-chrome/
+.config/google-chrome-headless/
+.config/chromium/
+.config/BraveSoftware/
+.config/Code/
+.config/Electron/
+.config/pulse/
+.config/gvfs-metadata/
+.config/Moonlight Game Streaming Project/
+.config/io.github.clash-verge-rev.clash-verge-rev/
+.config/mpd/log
+.config/mpd/database
+.config/mpd/state
+.config/mpd/pid
+*.log
+*.wal
+*.pid
+*.lock
+*.sqlite
+*.sqlite3
+*.db
+*.pickle
+*.pyc
+*.swp
+*~
+__pycache__/
+node_modules/
+.DS_Store
