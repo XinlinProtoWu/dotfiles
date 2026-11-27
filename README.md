@@ -98,6 +98,26 @@ dots status        # optional: what changed locally since the last push
 (backups kept) → restore LazyVim/pi/Obsidian. Both are idempotent; running them
 twice is harmless.
 
+### Deletions
+
+* `push` propagates deletions for anything **mirrored**: files/dirs under
+  `~/.config`, scripts in `~/.local/bin`, contents of `~/.agents`,
+  `~/.pi/agent/{extensions,skills,prompts,themes}`, and files inside vaults.
+  The mirror guard refuses to wipe >25 files **and** >30 % of a tree (or an
+  entire tree of >20 files) unless you pass `--force`.
+* `pull` is additive by default: files deleted upstream stay on this machine.
+  Use `dots pull --prune` to apply them. Every pull records the deletions it
+  brought in (in `~/.local/state/dots/pending-prune.txt`), so a `--prune` run
+  later still catches up. Only paths that git actually deleted are removed —
+  machine-local/untracked files are never touched. Removed paths are backed up
+  under `~/.local/state/dots/backups/<run>/pruned/`.
+* Deleting a whole vault on one machine needs `dots push --force` (stale mirrors
+  are detected by comparing `vaults/` in the repo with the vaults found here;
+  a missing `VAULT_ROOTS` root is ignored so an unmounted vault never wipes the
+  mirror). On other machines `dots pull --prune` then removes the mirrored files.
+* `git rm` + push removes a path from the current tree only; old commits keep
+  it, so sensitive removals still need the `filter-repo` route.
+
 When two machines edited the **same** file, the rebase in `push` stops with a
 conflict instead of silently dropping work:
 

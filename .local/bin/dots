@@ -43,8 +43,9 @@ BACKUP_ROOT=$STATE_DIR/backups
 MANIFEST_DIR=$REPO/manifests
 HOST=$(hostname -s 2>/dev/null || cat /etc/hostname 2>/dev/null || echo unknown)
 
-DRY_RUN=0 ASSUME_YES=0 FORCE=0 VERBOSE=0
+DRY_RUN=0 ASSUME_YES=0 FORCE=0 VERBOSE=0 PRUNE=0
 DO_PUSH=1 DO_PACKAGES=1 DO_SYSTEM=0 WITH_SECRETS=0
+PRUNE_HEAD=""
 COMMIT_MSG=""
 
 # -----------------------------------------------------------------------------
@@ -107,6 +108,7 @@ Options
   -v, --verbose        Verbose output
       --no-push        Push: commit locally only
       --no-packages    Pull: skip package installation
+      --prune          Pull: apply deletions that arrived from other machines
       --system         Pull: also deploy /etc and rebuild initramfs/grub
       --with-secrets   Pull: also decrypt and restore the secrets bundle
   -m, --message MSG    Push: custom commit message
@@ -115,6 +117,7 @@ Examples
   dots push                       # sync this machine up to GitHub
   dots pull                       # make this machine look like the repo
   dots pull --system --with-secrets -y
+  dots pull --prune               # also delete files removed upstream (backed up)
   dots bootstrap git@github.com:XinlinProtoWu/dotfiles.git
 EOF
 }
@@ -162,8 +165,10 @@ mirror_tree() {
       | grep -c '^\*deleting' || true)
     total=$(find "$dst" -type f 2>/dev/null | wc -l)
     del=${del:-0}
-    if (( del > 25 )) || { (( total > 0 )) && (( del * 100 / total > 30 )); }; then
-      die "refusing to mirror $label: would delete $del of $total files (--force to override)"
+    local pct=0
+    (( total > 0 )) && pct=$(( del * 100 / total ))
+    if (( del > 25 && pct > 30 )) || (( total > 20 && del == total )); then
+      die "refusing to mirror $label: would delete $del of $total files (${pct}%) — --force to override"
     fi
   fi
 
@@ -221,6 +226,39 @@ copy_into_repo() {
   mkdir -p "$(dirname "$dst")"
   rm -rf "$dst"
   cp -a "$src" "$dst"
+}
+
+prune_stale_vaults() {
+  # Inventory comes from the mirrors themselves, not manifests/vaults.txt:
+  # the manifest is regenerated from this host and would hide a vault that
+  # was deleted here but still lives in the repo.
+  [[ -d $REPO/vaults ]] || return 0
+  local -a now=()
+  mapfile -t now < <(vault_relpaths)
+  local rel root owner v found
+  while IFS= read -r rel; do
+    [[ -n $rel ]] || continue
+    found=0
+    for v in "${now[@]}"; do
+      [[ $v == "$rel" ]] && { found=1; break; }
+    done
+    (( found )) && continue
+    owner=""
+    for root in "${VAULT_ROOTS[@]}"; do
+      [[ "$HOME/$rel" == "$root"/* ]] && { owner=$root; break; }
+    done
+    [[ -n $owner ]] || continue
+    [[ -d $owner ]] || continue        # this host does not have that vault root
+    [[ -e "$HOME/$rel" ]] && continue  # notes still on disk, only .obsidian gone
+    warn "vault '$rel' is gone on this host but still mirrored"
+    if (( FORCE )); then
+      run rm -rf "$REPO/vaults/$rel"
+      ok "removed stale mirror vaults/$rel"
+    else
+      warn "  re-run with --force to drop vaults/$rel from the repo"
+    fi
+  done < <(find "$REPO/vaults" -type d -name .obsidian -printf '%P\n' 2>/dev/null \
+             | sed 's|/\.obsidian$||' | sort -u)
 }
 
 vault_relpaths() {
@@ -615,6 +653,79 @@ install_pi_packages() {
 }
 
 # -----------------------------------------------------------------------------
+# deletion propagation (dots pull --prune)
+# -----------------------------------------------------------------------------
+# Repo path -> path it is deployed to.
+repo_path_to_dest() {
+  local p=$1
+  case $p in
+    .config/*)              printf '%s\n' "$HOME/$p" ;;
+    home/*)                 printf '%s\n' "$HOME/${p#home/}" ;;
+    .agents/*|.local/bin/*) printf '%s\n' "$HOME/$p" ;;
+    agents/*)               printf '%s\n' "$HOME/.agents/${p#agents/}" ;;
+    pi/*)                   printf '%s\n' "$HOME/.pi/agent/${p#pi/}" ;;
+    vaults/*)               printf '%s\n' "$HOME/${p#vaults/}" ;;
+    etc/*)                  (( DO_SYSTEM )) && printf '/%s\n' "$p" ;;
+  esac
+}
+
+remove_path() {
+  local dst=$1 rel=$2 bk d
+  if (( DRY_RUN )); then
+    info "[dry-run] prune $rel"
+    return 0
+  fi
+  bk="$BACKUP_ROOT/$RUN_ID/pruned/$rel"
+  mkdir -p "$(dirname "$bk")" 2>/dev/null || true
+  if [[ $dst == /etc/* ]]; then
+    sudo cp -a "$dst" "$bk" 2>/dev/null || true
+    sudo rm -rf -- "$dst"
+  else
+    cp -a "$dst" "$bk" 2>/dev/null || true
+    rm -rf -- "$dst"
+  fi
+  d=$(dirname "$dst")
+  while [[ $d == "$HOME"/* ]]; do
+    rmdir -- "$d" 2>/dev/null || break
+    d=$(dirname "$d")
+  done
+  ok "pruned $rel"
+}
+
+# apply_pending_deletions [extra repo paths...]
+apply_pending_deletions() {
+  local -a pending=() extra=("$@")
+  local ledger=$STATE_DIR/pending-prune.txt
+  [[ -s $ledger ]] && mapfile -d '' -t pending <"$ledger"
+  ((${#extra[@]})) && pending+=("${extra[@]}")
+  ((${#pending[@]})) || return 0
+  mapfile -d '' -t pending < <(printf '%s\0' "${pending[@]}" | sort -zu)
+
+  local p dst rel
+  for p in "${pending[@]}"; do
+    [[ -n $p ]] || continue
+    # re-added upstream since it was deleted: keep the local copy
+    if git -C "$REPO" cat-file -e "${PRUNE_HEAD:-HEAD}:$p" 2>/dev/null; then
+      continue
+    fi
+    dst=$(repo_path_to_dest "$p")
+    if [[ -z $dst ]]; then
+      warn "no deploy mapping for deleted path: $p"
+      continue
+    fi
+    case $dst in
+      "$HOME"/*) rel=${dst#"$HOME"/} ;;
+      /etc/*)    rel=${dst#/} ;;
+      *)         warn "refusing to prune outside HOME: $dst"; continue ;;
+    esac
+    [[ -e $dst || -L $dst ]] || continue
+    remove_path "$dst" "$rel"
+  done
+
+  (( DRY_RUN )) || : >"$ledger"
+}
+
+# -----------------------------------------------------------------------------
 # secrets
 # -----------------------------------------------------------------------------
 secrets_bundle() {
@@ -764,6 +875,8 @@ cmd_push() {
     fi
   done < <(vault_relpaths)
 
+  prune_stale_vaults
+
   info "snapshotting machine-specific overrides for '$HOST'"
   for f in "${HOST_OVERLAY_FILES[@]}"; do
     copy_into_repo "$HOME/$f" "$REPO/profiles/$HOST/overlay/$f"
@@ -818,9 +931,53 @@ cmd_pull() {
   need rsync
   ensure_repo
 
-  if git -C "$REPO" remote get-url origin >/dev/null 2>&1 && (( ! DRY_RUN )); then
-    info "updating repository"
-    git -C "$REPO" pull --ff-only --quiet || warn "could not update repo (continuing with local copy)"
+  local pre_head="" post_head=""
+  git -C "$REPO" rev-parse --verify -q HEAD >/dev/null 2>&1 && pre_head=$(git -C "$REPO" rev-parse HEAD)
+
+  if git -C "$REPO" remote get-url origin >/dev/null 2>&1; then
+    if (( ! DRY_RUN )); then
+      info "updating repository"
+      git -C "$REPO" pull --ff-only --quiet || warn "could not update repo (continuing with local copy)"
+    else
+      # read-only fetch so --dry-run --prune can still preview upstream deletions
+      git -C "$REPO" fetch --quiet origin 2>/dev/null || true
+    fi
+  fi
+
+  if (( DRY_RUN )) && git -C "$REPO" rev-parse --verify -q "origin/$(git -C "$REPO" branch --show-current)" >/dev/null 2>&1; then
+    post_head=$(git -C "$REPO" rev-parse "origin/$(git -C "$REPO" branch --show-current)")
+    PRUNE_HEAD=$post_head
+  else
+    post_head=$(git -C "$REPO" rev-parse --verify -q HEAD 2>/dev/null || true)
+  fi
+
+  # Track deletions that arrived from other machines. `--prune` applies them;
+  # without it they are only remembered (so a later --prune still catches up).
+  local -a new_dels=()
+  if [[ -n $pre_head && -n $post_head ]]; then
+    local base=$pre_head cand
+    if [[ -s $STATE_DIR/last-seen-head ]]; then
+      cand=$(cat "$STATE_DIR/last-seen-head")
+      git -C "$REPO" cat-file -e "$cand^{commit}" 2>/dev/null && base=$cand
+    fi
+    if [[ $base != "$post_head" ]]; then
+      mapfile -d '' -t new_dels < <(
+        git -C "$REPO" diff --no-renames --name-only --diff-filter=D -z \
+          "$base" "$post_head" 2>/dev/null
+      )
+      ((${#new_dels[@]})) && info "upstream deleted ${#new_dels[@]} path(s) since ${base:0:7}"
+    fi
+    if (( ! DRY_RUN )); then
+      if ((${#new_dels[@]})); then
+        printf '%s\0' "${new_dels[@]}" >>"$STATE_DIR/pending-prune.txt"
+        sort -zu "$STATE_DIR/pending-prune.txt" -o "$STATE_DIR/pending-prune.txt"
+      fi
+      printf '%s\n' "$post_head" >"$STATE_DIR/last-seen-head"
+    fi
+  fi
+
+  if (( PRUNE )); then
+    apply_pending_deletions "${new_dels[@]}"
   fi
 
   run_hook pre-pull
@@ -1125,6 +1282,7 @@ main() {
       -v|--verbose)   VERBOSE=1 ;;
       --no-push)      DO_PUSH=0 ;;
       --no-packages)  DO_PACKAGES=0 ;;
+      --prune)        PRUNE=1 ;;
       --system)       DO_SYSTEM=1 ;;
       --with-secrets) WITH_SECRETS=1 ;;
       -m|--message)   COMMIT_MSG=${2:-}; shift ;;
