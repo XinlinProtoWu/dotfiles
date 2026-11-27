@@ -1,4 +1,3 @@
 pi|command -v pi|curl -fsSL https://pi.dev/install.sh | sh
 oh-my-posh|command -v omp|curl -s https://ohmyposh.dev/install.sh | bash -s -- -d $HOME/.local/bin
 devkitpro|test -d /opt/devkitpro|sudo pacman -U --noconfirm https://pkg.devkitpro.org/devkitpro-keyring.pkg.tar.zst && sudo pacman-key --populate devkitpro
-pspdev|test -x /usr/local/pspdev/bin/psp-gcc|echo 'Install PSPDEV from https://github.com/pspdev/pspdev then re-run: dots pull'
