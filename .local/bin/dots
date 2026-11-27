@@ -994,6 +994,20 @@ cmd_doctor() {
   done < <(git -C "$REPO" ls-files -z 2>/dev/null)
   (( found )) && issues=$((issues + 1)) || echo "  ok  no known secret paths tracked"
 
+  echo "== secret paths in git history"
+  local hist
+  hist=$(git -C "$REPO" rev-list --objects --all 2>/dev/null \
+    | grep -Ei '(auth\.json$|/cookie$|Moonlight\.conf$|/Cookies|id_rsa|id_ed25519|\.pem$)' \
+    | head -5 || true)
+  if [[ -n $hist ]]; then
+    echo "$hist" | sed 's/^/  /' 
+    echo "  WARN old commits still contain these; purge with:"
+    echo "       git filter-repo --invert-paths --path <path>"
+    issues=$((issues + 1))
+  else
+    echo "  ok  none found"
+  fi
+
   echo "== large files"
   local big
   big=$(find "$REPO" -path "$REPO/.git" -prune -o -type f -size +"${MAX_FILE_MB}"M -print 2>/dev/null)
