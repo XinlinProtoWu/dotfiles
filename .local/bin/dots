@@ -433,10 +433,10 @@ commit_and_push() {
     warn "no git remote configured; commit kept locally"
     return 0
   fi
-  git -C "$REPO" pull --rebase --autostash --quiet \
-    || warn "git pull --rebase failed — resolve conflicts, then 'git -C $REPO push'"
   local branch
   branch=$(git -C "$REPO" branch --show-current)
+  git -C "$REPO" pull --rebase --autostash --quiet origin "$branch" \
+    || warn "git pull --rebase failed — resolve conflicts, then 'git -C $REPO push'"
   if git -C "$REPO" push -q origin "$branch"; then
     ok "pushed to origin/$branch"
   else
