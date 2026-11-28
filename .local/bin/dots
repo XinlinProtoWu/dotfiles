@@ -271,6 +271,10 @@ prune_stale_vaults() {
 # copy on the next push (source files are untouched).
 vault_rsync_includes() {
   local ext
+  # .obsidian is synced whole (see above), even though most of its files are
+  # not in VAULT_EXTENSIONS.
+  printf -- '--include=.obsidian/\n'
+  printf -- '--include=.obsidian/***\n'
   printf -- '--include=*/\n'
   for ext in "${VAULT_EXTENSIONS[@]}"; do
     printf -- '--include=*.%s\n' "$ext"
