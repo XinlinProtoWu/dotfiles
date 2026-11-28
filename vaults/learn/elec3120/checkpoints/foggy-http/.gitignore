@@ -1,7 +1,0 @@
-build/
-runtime/
-*.zip
-__pycache__/
-*.pyc
-*.dSYM/
-.DS_Store

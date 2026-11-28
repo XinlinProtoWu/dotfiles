@@ -912,8 +912,12 @@ cmd_push() {
       done < <(find "$HOME/$rel" -type f -size +"${VAULT_MAX_FILE_MB}"M \
                  -not -path '*/.git/*' -not -path '*/node_modules/*' -print0 2>/dev/null \
                  | grep -zEi "$(vault_include_regex)")
+      # --delete-excluded: the include filter protects everything it does not
+      # match, so without this rsync would never prune previously mirrored
+      # code dumps, vendored trees and other now-disallowed files from the
+      # repo copy. Source files under $HOME are never touched.
       mirror_tree "$HOME/$rel" "$REPO/vaults/$rel" "vault:$rel" \
-        "${vault_ex[@]}" "${vault_include[@]}" --max-size="${VAULT_MAX_FILE_MB}m"
+        --delete-excluded "${vault_ex[@]}" "${vault_include[@]}" --max-size="${VAULT_MAX_FILE_MB}m"
     else
       mirror_tree "$HOME/$rel/.obsidian" "$REPO/vaults/$rel/.obsidian" \
         "vault:$rel" "${vault_ex[@]}" "${vault_include[@]}"
