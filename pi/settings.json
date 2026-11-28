@@ -1,10 +1,9 @@
 {
-  "lastChangelogVersion": "1.6.1",
+  "lastChangelogVersion": "1.7.0",
   "theme": "dark/dark",
-  "defaultProvider": "deepseek",
-  "defaultModel": "deepseek-v4-pro",
+  "defaultProvider": "auto",
+  "defaultModel": "smart",
   "packages": [
-    "npm:pi-nolo",
     "npm:pi-undo-redo"
   ]
 }

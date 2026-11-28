@@ -640,3 +640,7 @@ Try these without looking at the notes.
 - Read the 60-second summary at the end of each lecture file.
 - Redo the quick self-check above.
 - Make sure you can explain **why** each formula is true, not just plug into it.
+
+---
+
+**Continues in Part IV:** [[lec_21_to_25_index]] — random processes, i.s.i. processes, autocorrelation, stationarity, and multiple processes.

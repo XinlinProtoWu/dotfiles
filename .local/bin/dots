@@ -28,6 +28,8 @@ else
   HOST_OVERLAY_FILES=()
   PI_FILES=(settings.json keybindings.json mcp.json models.json)
   PI_DIRS=(extensions skills prompts themes)
+  PI_SCREEN_PKG="$HOME/.local/lib/node_modules/@earendil-works/pi-coding-agent"
+  PI_SCREEN_FILES=()
   VAULT_ROOTS=("$HOME/learn")
   VAULT_EXCLUDES=(workspace.json node_modules/)
   ETC_FILES=()
@@ -261,6 +263,28 @@ prune_stale_vaults() {
              | sed 's|/\.obsidian$||' | sort -u)
 }
 
+# rsync include rules built from VAULT_EXTENSIONS (case insensitive).
+# Keeps every directory reachable, allows only the listed extensions, and
+# drops everything else. `.obsidian` is exempt: plugin/theme JSON, JS, CSS and
+# data files are configuration, not notes.
+# Anything previously mirrored outside these rules is deleted from the repo
+# copy on the next push (source files are untouched).
+vault_rsync_includes() {
+  local ext
+  printf -- '--include=*/\n'
+  for ext in "${VAULT_EXTENSIONS[@]}"; do
+    printf -- '--include=*.%s\n' "$ext"
+    printf -- '--include=*.%s\n' "${ext^^}"
+  done
+  printf -- '--exclude=*\n'
+}
+
+# ERE matching the paths rsync will keep, for the oversized-file warning.
+vault_include_regex() {
+  local IFS='|'
+  printf '(\.obsidian/|\.(%s)$)' "${VAULT_EXTENSIONS[*]^^}"
+}
+
 vault_relpaths() {
   local root rel
   for root in "${VAULT_ROOTS[@]}"; do
@@ -381,6 +405,8 @@ is_binary_or_big() {
   # $1 is repo-relative; vault notes may be binary (pdf/png) and larger.
   local f=$1 path=$REPO/$1 size limit
   [[ -L $path ]] && return 0
+  # Pi startup screen customizations include a large bundled JS chunk.
+  case $f in pi-screen/*) return 1 ;; esac
   size=$(stat -c %s "$path" 2>/dev/null || echo 0)
   if [[ $f == vaults/* ]]; then
     limit=$((${VAULT_MAX_FILE_MB:-25} * 1024 * 1024))
@@ -664,6 +690,7 @@ repo_path_to_dest() {
     .agents/*|.local/bin/*) printf '%s\n' "$HOME/$p" ;;
     agents/*)               printf '%s\n' "$HOME/.agents/${p#agents/}" ;;
     pi/*)                   printf '%s\n' "$HOME/.pi/agent/${p#pi/}" ;;
+    pi-screen/*)            printf '%s\n' "$PI_SCREEN_PKG/${p#pi-screen/}" ;;
     vaults/*)               printf '%s\n' "$HOME/${p#vaults/}" ;;
     etc/*)                  (( DO_SYSTEM )) && printf '/%s\n' "$p" ;;
   esac
@@ -820,13 +847,14 @@ cmd_push() {
   need rsync
   ensure_repo
 
-  local -a conf_ex=() vault_ex=()
+  local -a conf_ex=() vault_ex=() vault_include=()
   local p f
   for p in "${CONFIG_EXCLUDES[@]}"; do conf_ex+=(--exclude="$p"); done
   for f in "${HOST_OVERLAY_FILES[@]}"; do
     [[ $f == .config/* ]] && conf_ex+=(--exclude="${f#.config/}")
   done
   for p in "${VAULT_EXCLUDES[@]}"; do vault_ex+=(--exclude="$p"); done
+  mapfile -t vault_include < <(vault_rsync_includes)
 
   if (( WITH_SECRETS )); then
     info "updating encrypted secrets bundle"
@@ -860,6 +888,12 @@ cmd_push() {
   done
   mirror_tree "$HOME/.agents" "$REPO/agents" "~/.agents"
 
+  info "snapshotting pi startup screen customization"
+  local pirel
+  for pirel in "${PI_SCREEN_FILES[@]}"; do
+    copy_into_repo "$PI_SCREEN_PKG/$pirel" "$REPO/pi-screen/$pirel"
+  done
+
   if (( VAULT_SYNC_NOTES )); then
     info "snapshotting obsidian vaults (notes + configs)"
   else
@@ -872,12 +906,13 @@ cmd_push() {
       while IFS= read -r -d '' big; do
         warn "vault:$rel skipping >${VAULT_MAX_FILE_MB}MB ${big#"$HOME/$rel/"}"
       done < <(find "$HOME/$rel" -type f -size +"${VAULT_MAX_FILE_MB}"M \
-                 -not -path '*/.git/*' -not -path '*/node_modules/*' -print0 2>/dev/null)
+                 -not -path '*/.git/*' -not -path '*/node_modules/*' -print0 2>/dev/null \
+                 | grep -zEi "$(vault_include_regex)")
       mirror_tree "$HOME/$rel" "$REPO/vaults/$rel" "vault:$rel" \
-        "${vault_ex[@]}" --max-size="${VAULT_MAX_FILE_MB}m"
+        "${vault_ex[@]}" "${vault_include[@]}" --max-size="${VAULT_MAX_FILE_MB}m"
     else
       mirror_tree "$HOME/$rel/.obsidian" "$REPO/vaults/$rel/.obsidian" \
-        "vault:$rel" "${vault_ex[@]}"
+        "vault:$rel" "${vault_ex[@]}" "${vault_include[@]}"
     fi
   done < <(vault_relpaths)
 
@@ -1035,6 +1070,15 @@ cmd_pull() {
   deploy_tree "$REPO/home" "$HOME" "home"
   deploy_tree "$REPO/agents" "$HOME/.agents" ".agents"
   deploy_tree "$REPO/pi" "$HOME/.pi/agent" ".pi/agent"
+
+  if [[ -d $REPO/pi-screen ]]; then
+    if [[ -d $PI_SCREEN_PKG ]]; then
+      info "applying pi startup screen customization"
+      deploy_tree "$REPO/pi-screen" "$PI_SCREEN_PKG" "pi-screen"
+    else
+      warn "pi package not found at $PI_SCREEN_PKG; skipping startup screen customization"
+    fi
+  fi
 
   local rel
   while IFS= read -r rel; do

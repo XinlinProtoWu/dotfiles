@@ -75,6 +75,15 @@ def rendered_width(tex):
     return len(" ".join(s.split()))
 
 
+def mask_code(s):
+    """Blank out inline code spans, preserving offsets.
+
+    A register name like ``$s0`` inside backticks is not a math delimiter, so the
+    ``$``-balance and table-cell checks must not see it.
+    """
+    return re.sub(r"`[^`\n]*`", lambda m: " " * len(m.group(0)), s)
+
+
 def math_problems(lines, fenced, text):
     """Inline math must live on ONE line; display math should fit on the page.
 
@@ -98,7 +107,7 @@ def math_problems(lines, fenced, text):
         if stripped.startswith("$$") and stripped.count("$$") == 1:
             in_display = True
             continue
-        no_display = re.sub(r"\$\$.+?\$\$", "", line)
+        no_display = re.sub(r"\$\$.+?\$\$", "", mask_code(line))
         n = len(re.findall(r"(?<!\\)\$", no_display))
         if n % 2:
             fails.append(f"math: line {i + 1} has {n} unescaped '$' — an inline span "
@@ -107,7 +116,8 @@ def math_problems(lines, fenced, text):
         fails.append("math: an opening '$$' is never closed")
 
     # brace balance and unescaped TeX specials, per span
-    for m in re.finditer(r"\$\$(.+?)\$\$|(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)", text, re.S):
+    masked = "\n".join(mask_code(l) for l in lines)
+    for m in re.finditer(r"\$\$(.+?)\$\$|(?<!\$)\$(?!\$)([^$\n]+?)(?<!\$)\$(?!\$)", masked, re.S):
         body = m.group(1) or m.group(2) or ""
         line = text[:m.start()].count("\n") + 1
         if (line - 1) in fenced:
@@ -119,7 +129,7 @@ def math_problems(lines, fenced, text):
             fails.append(f"math: line {line} has an unescaped '%' or '#' in "
                          f"{m.group(0)[:60]!r} — write \\% or \\#")
 
-    for m in re.finditer(r"\$\$(.+?)\$\$", text, re.S):
+    for m in re.finditer(r"\$\$(.+?)\$\$", masked, re.S):
         body = m.group(1)
         rows = [r for r in body.split("\\\\") if r.strip()] if "aligned" in body else [body]
         widest = max(rendered_width(r) for r in rows)
@@ -173,7 +183,7 @@ def audit(path, base, is_term=False):
                 if count_cells(lines[j]) != cells:
                     fails.append(f"table: row {j + 1} has {count_cells(lines[j])} pipes, "
                                  f"header has {cells}")
-                for math in re.findall(r"\$[^$]*\$", lines[j]):
+                for math in re.findall(r"\$[^$]*\$", mask_code(lines[j])):
                     if "|" in math.replace("\\vert", "").replace("\\mid", "") \
                                  .replace("\\lvert", "").replace("\\rvert", ""):
                         fails.append(f"table: row {j + 1} has an unescaped '|' inside "

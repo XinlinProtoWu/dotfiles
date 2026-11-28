@@ -6,7 +6,11 @@
 #include <string.h>
 #include <strings.h>
 
+#ifdef FOGGY_HTTP_READ_MS
+#define CLIENT_READ_TIMEOUT_MS FOGGY_HTTP_READ_MS
+#else
 #define CLIENT_READ_TIMEOUT_MS 5000
+#endif
 #define SERVER_IDLE_TIMEOUT_MS 3000
 
 int foggy_http_buffer_append(foggy_http_buffer_t *buffer, const void *data, size_t size) {
@@ -648,10 +652,37 @@ static const char *reason_phrase(int status) {
         case 200: return "OK";
         case 400: return "Bad Request";
         case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
         case 500: return "Internal Server Error";
         case 501: return "Not Implemented";
         default: return "OK";
     }
+}
+
+/* Build a routing response for a miss: 200 for OPTIONS on a registered path,
+ * 404 for an unknown path, or 405 for an unsupported method on a known path.
+ * has_get/has_post describe which handlers are registered for the target. */
+static int routing_response(foggy_http_response_t *response, int status,
+                            int has_get, int has_post) {
+    response->status = status;
+    if (status != 200) {
+        const char *message = status == 404 ? "Not Found" : "Method Not Allowed";
+        char body[64];
+        int n = snprintf(body, sizeof(body), "{\"error\":\"%s\"}", message);
+        if (n < 0 || (size_t)n >= sizeof(body)) { errno = EOVERFLOW; return -1; }
+        if (foggy_http_header_set(&response->headers, "Content-Type", "application/json") < 0)
+            return -1;
+        if (foggy_http_buffer_append(&response->body, body, (size_t)n) < 0) return -1;
+    }
+    if (status != 404) {
+        const char *allow = NULL;
+        if (has_get && has_post) allow = "GET, POST, OPTIONS";
+        else if (has_get) allow = "GET, OPTIONS";
+        else if (has_post) allow = "POST, OPTIONS";
+        if (!allow) { errno = EINVAL; return -1; }
+        if (foggy_http_header_set(&response->headers, "Allow", allow) < 0) return -1;
+    }
+    return 0;
 }
 
 static int write_response(foggy_transport_t io, const char *version,
@@ -771,21 +802,38 @@ int foggy_http_server_listen(foggy_http_server_t *server, int port, int session_
             foggy_http_response_init(&response);
 
             foggy_http_route_t *handler = NULL;
+            int has_get = 0, has_post = 0;
             for (foggy_http_route_t *r = server->routes; r; r = r->next) {
-                if (strcmp(r->method, pr.method) == 0 && strcmp(r->path, pr.target) == 0) {
-                    handler = r;
-                    break;
+                if (strcmp(r->path, pr.target) == 0) {
+                    if (strcmp(r->method, "GET") == 0) has_get = 1;
+                    else if (strcmp(r->method, "POST") == 0) has_post = 1;
+                    if (strcmp(r->method, pr.method) == 0) handler = r;
                 }
             }
 
-            if (!handler) {
-                response.status = 404;
-            } else {
+            if (handler) {
                 int result = handler->handler(&request, &response, handler->context);
                 if (result != 0) {
                     foggy_http_response_free(&response);
                     foggy_http_response_init(&response);
                     response.status = 500;
+                }
+            } else if (has_get || has_post) {
+                if (strcmp(pr.method, "OPTIONS") == 0) {
+                    if (routing_response(&response, 200, has_get, has_post) < 0) {
+                        session_error = -1;
+                        saved_errno = errno;
+                    }
+                } else {
+                    if (routing_response(&response, 405, has_get, has_post) < 0) {
+                        session_error = -1;
+                        saved_errno = errno;
+                    }
+                }
+            } else {
+                if (routing_response(&response, 404, 0, 0) < 0) {
+                    session_error = -1;
+                    saved_errno = errno;
                 }
             }
 

@@ -1,4 +1,5 @@
 {
   "theme": "moonstone",
-  "cssTheme": "Tokyo Night"
+  "cssTheme": "Tokyo Night",
+  "showRibbon": true
 }

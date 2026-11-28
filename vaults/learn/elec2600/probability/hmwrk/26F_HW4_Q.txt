@@ -1,0 +1,95 @@
+                                                              ELEC2600 Homework #4 | 2026 Fall
+
+Due: Nov 30 (Fri) 5PM                                                             Full Marks: 60
+
+   §    Please submit your solution to Gradescope.
+   §    NO late submission will be accepted.
+   §    NO marks will be given if only numerical answer is provided.
+   §    NO marks will be given if important mathematical expressions or derivation steps are
+        not provided.
+
+
+
+Question 1     (6 marks)
+
+Assume that a group of electronic devices whose lifetimes are i.i.d. random variables. A
+technician wants to use the sample mean to estimate the mean value of the lifetime. Further
+assume the standard deviation for the lifetimes of an electronic device is 5 years.
+
+(1.1)   (3 marks) Use the Central Limit Theorem to estimate the number of electronic devices
+        that the technician should test, denoted as 𝑛, such that the sample mean is within 1
+        year of the actual mean with probability at least 95%.
+(1.2)   (3 marks) Suppose that the true mean of the lifetimes of a group of electronic devices is
+        8 years, and we average the lifetimes of 80 electronic devices. What is the probability
+        that the measured average is within 1 year of the true mean?
+
+
+
+Question 2     (15 marks)
+
+Suppose that the total number of buses that arrive at bus station between time 0 and time 𝑡,
+𝑁(𝑡), is given by a Poisson random process with rate 𝜆 = 4 buses per hour.
+
+(2.1)   (3 marks) Find the probability that exactly 2 buses arrive in the ﬁrst 25 minutes.
+(2.2)   (3 marks) Find the probability that exactly 2 buses arrive in the ﬁrst 25 minutes and that
+        exactly 3 buses arrive in the next 30 minutes.
+(2.3)   (3 marks) Find the probability that the ﬁrst bus arrives before 𝑡 = 15 minutes.
+(2.4)   (3 marks) Find the probability that the ﬁrst bus arrives between 𝑡 = 10 and 𝑡 = 20
+        minutes.
+(2.5)   (3 marks) Find the probability that the second bus arrives before 𝑡 = 25 minutes.
+
+
+
+
+                                                                                                 1
+                                                                  ELEC2600 Homework #4 | 2026 Fall
+
+Question 3     (20 marks)
+
+Consider the discrete time one-dimensional random walk scenario. At each time step, you
+draw one card with replacement out of a deck of 52 well-shuXled cards at random. Each time
+an ace is drawn, you move to the right 10 cm. Otherwise, you stay at your current position.
+
+Let 𝐷! be the distance from the origin after 𝑛 time steps. If 𝐷! is positive, it means you are to
+the right of origin. If 𝐷! is negative, you are to its left. Assume that before the ﬁrst time step, you
+are at the origin, i.e. 𝐷" = 0.
+
+(3.1)   (5 marks) Find the values of 𝐸[𝐷# ], 𝑉𝐴𝑅[𝐷# ] and 𝐶$ (8, 12) = 𝐶𝑂𝑉(𝐷# , 𝐷%& ).
+(3.2)   (3 marks) Find the probability that you are 30 cm to the right of the origin after 6 time
+        steps, i.e. 𝑃[𝐷' = 30].
+(3.3)   (3 marks) Find 𝑃[𝐷%( = 60|𝐷' = 30].
+(3.4)   (3 marks) Find 𝑃[𝐷%( = 60 ∩ 𝐷' = 30].
+(3.5)   (3 marks) Now at each time step, instead of staying at your current position when an ace
+        is not drawn, you move left by 5 cm. You continue to move right by 10 cm if an ace is
+        drawn. Suppose before the ﬁrst time step, you are at 25 cm to the right of the origin (i.e.
+        𝐷" = 25). What is the probability that you are to the right of the origin after 5 time steps,
+        i.e. 𝑃[𝐷( > 0]?
+(3.6)   (3 marks) Now at each time step, instead of staying at your current position when an ace
+        is not drawn, you move left by 10 cm. You continue to move right by 10 cm if an ace is
+        drawn. Suppose before the ﬁrst time step, you are at 25 cm to the right of the origin (i.e.
+        𝐷" = 25). What is the probability that you are to the right of the origin after 8 time steps,
+        i.e. 𝑃[𝐷# > 0]?
+
+
+
+Question 4     (19 marks)
+
+Suppose that a person’s daily income on day 𝑖 ∈ {1, 2, … , 𝑛}, denoted as 𝑋) , is random. On day
+𝑖 ≥ 2, the person spends half of his/her daily income of day 𝑖 − 1. Let 𝑌) be the person’s net
+                                                          %
+income on day 𝑖 ≥ 2, which is expressed as 𝑌) = 𝑋) − & 𝑋)*% .
+
+(4.1)   (8 marks) Assume that the person’s daily income, 𝑋) ’s, are i.i.d. random variables with
+        mean 400 and variance 8000. Find the mean, autocorrelation and covariance function
+        of 𝑌) .
+(4.2)   (8 marks) Assume that the person’s daily income, 𝑋) ’s, are taken from a Gaussian wide-
+        sense stationary random process with mean 400 and covariance function given by
+        𝐶+ (𝑗, 𝑘) = 8000𝑒 *&|-*.| . Find the mean, autocorrelation and covariance function of 𝑌) .
+(4.3)   (3 marks) By considering the random vector J𝑌⃗ = L//!M, with 𝑌& and 𝑌0 as deﬁned in part
+                                                              "
+        (4.2), express the joint probability density function of 𝑌& and 𝑌0 .
+
+
+
+                                                                                                     2
+
